@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState, type FocusEvent, type KeyboardEvent } from 'react';
 import { displayRect, layoutPostit, POSTIT_BODY_SIZE, POSTIT_PADDING } from '../../lib/layout';
-import { FONT_FAMILY, INK, LINE_HEIGHT, postitFill, TEXT_LEVELS } from '../../lib/palette';
+import { FONT_FAMILY, LINE_HEIGHT, postitFill, postitInk, TEXT_LEVELS } from '../../lib/palette';
 import { finishEditing } from '../../stores/actions';
 import { useBoardStore } from '../../stores/boardStore';
 import { useUiStore } from '../../stores/uiStore';
@@ -69,7 +69,7 @@ function PostitEditor({ element }: { element: PostitElement }) {
         minHeight: displayRect(element).height,
         padding: POSTIT_PADDING,
         background: postitFill(element.style.color),
-        color: INK,
+        color: postitInk(element.style.color),
       }}
     >
       <textarea

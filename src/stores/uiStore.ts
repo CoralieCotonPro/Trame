@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { BoardFile } from '../lib/boardFile';
 import type { Camera, Point, Rect, TagFilters } from '../types/board';
 
 export type Tool = 'select' | 'hand';
@@ -30,6 +31,8 @@ interface UiState {
   role: 'owner' | 'editor' | 'viewer';
   accessLost: boolean;
   shareOpen: boolean;
+  exporting: boolean;
+  importFile: BoardFile | null;
   set: (partial: Partial<Omit<UiState, 'set' | 'select'>>) => void;
   select: (ids: Iterable<string>) => void;
 }
@@ -55,6 +58,8 @@ export const useUiStore = create<UiState>((set) => ({
   role: 'owner',
   accessLost: false,
   shareOpen: false,
+  exporting: false,
+  importFile: null,
   set,
   select: (ids) => set({ selectedIds: new Set(ids) }),
 }));

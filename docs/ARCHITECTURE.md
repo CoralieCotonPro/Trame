@@ -1,6 +1,6 @@
 # Architecture
 
-Ce document explique les choix structurants du tableau blanc Envergo. Il s'adresse à la personne qui maintient l'application, sans supposer une expertise particulière en temps réel.
+Ce document explique les choix structurants de Trame. Il s'adresse à la personne qui maintient l'application, sans supposer une expertise particulière en temps réel.
 
 ## Vue d'ensemble
 
@@ -165,3 +165,7 @@ tests/{unit,e2e}/
 ```
 
 Les dossiers sont créés au fur et à mesure des étapes. La logique métier (`lib/`, `stores/`) reste indépendante de l'affichage, et l'accès au réseau reste confiné à `services/`.
+
+## Charte graphique
+
+Les couleurs proviennent du DSFR (version 1.15.4), reprises sous forme de valeurs dans `src/styles/index.css`, `src/lib/palette.ts` et `src/lib/tags.ts` : le paquet DSFR n'est pas une dépendance. Les tags utilisent les teintes « main », les plus vives ; les post-it ont une palette claire choisie pour le projet. Le texte y passe automatiquement en noir ou en blanc pour rester lisible. La police est la police système sans empattement. Le bloc-marque de la République française (logo, Marianne) n'est pas intégré.

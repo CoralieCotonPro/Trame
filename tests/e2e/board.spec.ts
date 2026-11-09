@@ -44,8 +44,8 @@ test('le texte long agrandit le post-it au lieu d’être coupé', async ({ page
 
 test('change la couleur d’un post-it', async ({ page }) => {
   const postit = await addPostit(page, 'Couleur');
-  await page.getByRole('button', { name: 'Couleur Violet' }).click();
-  await expect(postit).toHaveAttribute('data-color', 'violet');
+  await page.getByRole('button', { name: 'Couleur Rouge clair' }).click();
+  await expect(postit).toHaveAttribute('data-color', 'red');
 });
 
 test('déplace un post-it', async ({ page }) => {

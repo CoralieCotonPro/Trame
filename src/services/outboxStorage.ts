@@ -1,6 +1,6 @@
 import type { Op } from '../lib/ops';
 
-const DB_NAME = 'envergo-tableau-blanc';
+const DB_NAME = 'trame';
 const STORE = 'outbox';
 
 function openDatabase(): Promise<IDBDatabase> {

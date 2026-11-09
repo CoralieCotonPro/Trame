@@ -25,7 +25,7 @@ function Item({ label, onClick, danger }: { label: string; onClick: () => void; 
       tabIndex={-1}
       onClick={onClick}
       className={`block w-full rounded-md px-3 py-2 text-left text-sm hover:bg-paper focus:bg-paper ${
-        danger ? 'text-[#b3261e]' : ''
+        danger ? 'text-danger' : ''
       }`}
     >
       {label}

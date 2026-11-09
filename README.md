@@ -1,8 +1,8 @@
-# Tableau blanc Envergo
+# Trame
 
-Tableau blanc collaboratif et libre pour construire collectivement la roadmap d'Envergo.
+Trame est un tableau blanc collaboratif et libre pour construire collectivement la roadmap d'Envergo.
 
-> **État actuel : étape 5 sur 6.** Le travail à plusieurs en temps réel et le partage par lien fonctionnent, en local. La mise en ligne arrive à l'étape 6.
+> **État actuel : étape 6 sur 6.** L'application est complète et testée en local. Sa mise en ligne suit le guide [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md).
 
 | Étape | Contenu | État |
 | --- | --- | --- |
@@ -11,9 +11,13 @@ Tableau blanc collaboratif et libre pour construire collectivement la roadmap d'
 | 3 | Tags, couleurs et filtres | Validée |
 | 4 | Supabase et sauvegarde persistante | Validée |
 | 5 | Temps réel, participants, partage sécurisé | Validée |
-| 6 | Exports, tests complémentaires, optimisations, Netlify | À faire |
+| 6 | Exports, tests complémentaires, optimisations, Netlify | Validée, mise en ligne en cours |
 
-Les choix techniques sont expliqués dans [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+- [État des fonctionnalités et limites connues](docs/ETAT.md)
+- [Mise en ligne](docs/DEPLOIEMENT.md)
+- [Base de données locale](docs/SUPABASE.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Format d'export JSON](docs/FORMAT.md)
 
 ## Démarrage local
 

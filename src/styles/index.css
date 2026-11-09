@@ -4,15 +4,19 @@
 @theme {
   --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
-  --color-paper: #faf9f6;
+  /* Jetons du DSFR 1.15.4, version claire. */
+  --color-paper: #f6f6f6; /* grey-975 */
   --color-surface: #ffffff;
-  --color-line: #e6e3dc;
-  --color-ink: #2b2a27;
-  --color-ink-soft: #625f58;
-  --color-accent: #b4532a;
+  --color-line: #dddddd; /* grey-900 */
+  --color-ink: #161616; /* grey-50 */
+  --color-ink-soft: #666666; /* grey-425 */
+  --color-accent: #000091; /* blue-france-sun-113 */
+  --color-danger: #ce0500; /* error-425 */
 
-  --radius-panel: 12px;
-  --shadow-panel: 0 1px 2px rgb(43 42 39 / 0.06), 0 6px 20px rgb(43 42 39 / 0.08);
+  --radius-panel: 4px;
+  --radius-lg: 4px;
+  --radius-md: 4px;
+  --shadow-panel: 0 1px 2px rgb(22 22 22 / 0.08), 0 6px 20px rgb(22 22 22 / 0.1);
 }
 
 html,
@@ -32,7 +36,7 @@ body {
 /* Dans la couche « base », pour que les utilitaires comme outline-none restent prioritaires. */
 @layer base {
   :focus-visible {
-    outline: 2px solid var(--color-accent);
+    outline: 2px solid #0a76f6; /* focus du DSFR */
     outline-offset: 2px;
   }
 }

@@ -58,7 +58,7 @@ export function JoinPage({ hasSession }: { hasSession: boolean }) {
           {joining ? 'Connexion…' : 'Rejoindre'}
         </button>
         {error && (
-          <p role="alert" className="mt-2 text-sm text-[#b3261e]">
+          <p role="alert" className="mt-2 text-sm text-danger">
             {error}
           </p>
         )}

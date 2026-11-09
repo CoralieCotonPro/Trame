@@ -1,7 +1,10 @@
 import { ArrowLeft, Menu } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { navigate } from '../../hooks/useRoute';
+import { MAX_FILE_BYTES, parseBoardFile } from '../../lib/boardFile';
+import { exportJson, exportPng } from '../../services/boardTransfer';
 import { useBoardStore } from '../../stores/boardStore';
+import { useSyncStore } from '../../stores/syncStore';
 import { useUiStore } from '../../stores/uiStore';
 import { Participants } from '../collaboration/Participants';
 import { IconButton } from './IconButton';
@@ -29,9 +32,33 @@ function Toggle({
   );
 }
 
+function MenuButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="block w-full rounded-md px-2 py-2 text-left text-sm hover:bg-paper"
+    >
+      {label}
+    </button>
+  );
+}
+
+async function readImport(file: File) {
+  const { set } = useSyncStore.getState();
+  if (file.size > MAX_FILE_BYTES) {
+    set({ notice: 'Ce fichier est trop volumineux (10 Mo au maximum).' });
+    return;
+  }
+  const result = parseBoardFile(await file.text());
+  if (result.ok) useUiStore.getState().set({ importFile: result.file });
+  else set({ notice: `Import impossible : ${result.error}` });
+}
+
 function MainMenu() {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const gridVisible = useUiStore((state) => state.gridVisible);
   const doubleClickCreates = useUiStore((state) => state.doubleClickCreates);
   const role = useUiStore((state) => state.role);
@@ -70,18 +97,46 @@ function MainMenu() {
           {role !== 'viewer' && (
             <>
               <div className="mx-2 my-1 h-px bg-line" />
-              <button
-                type="button"
+              <MenuButton
+                label="Gérer les tags"
                 onClick={() => {
                   setOpen(false);
                   setUi({ tagManagerOpen: true });
                 }}
-                className="block w-full rounded-md px-2 py-2 text-left text-sm hover:bg-paper"
-              >
-                Gérer les tags
-              </button>
+              />
             </>
           )}
+          <div className="mx-2 my-1 h-px bg-line" />
+          <MenuButton
+            label="Exporter en JSON"
+            onClick={() => {
+              setOpen(false);
+              exportJson();
+            }}
+          />
+          <MenuButton
+            label="Exporter en image PNG"
+            onClick={() => {
+              setOpen(false);
+              void exportPng();
+            }}
+          />
+          {role !== 'viewer' && (
+            <MenuButton label="Importer un fichier JSON" onClick={() => fileRef.current?.click()} />
+          )}
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/json,.json"
+            aria-label="Fichier JSON à importer"
+            className="sr-only"
+            tabIndex={-1}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = '';
+              if (file) void readImport(file).then(() => setOpen(false));
+            }}
+          />
         </div>
       )}
     </div>

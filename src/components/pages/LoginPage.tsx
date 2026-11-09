@@ -20,7 +20,7 @@ export function LoginPage() {
   return (
     <main className="flex h-full items-center justify-center p-4">
       <section className="w-full max-w-sm rounded-panel border border-line bg-surface p-6 shadow-panel">
-        <h1 className="text-xl font-bold">Tableau blanc Envergo</h1>
+        <h1 className="text-xl font-bold">Trame</h1>
         {status === 'sent' ? (
           <p role="status" className="mt-3 text-ink-soft">
             Un lien de connexion a été envoyé à <strong className="text-ink">{email}</strong>.
@@ -48,7 +48,7 @@ export function LoginPage() {
               {status === 'sending' ? 'Envoi…' : 'Recevoir le lien'}
             </button>
             {status === 'error' && (
-              <p role="alert" className="mt-2 text-sm text-[#b3261e]">
+              <p role="alert" className="mt-2 text-sm text-danger">
                 L'envoi a échoué. Vérifiez l'adresse et réessayez dans quelques instants.
               </p>
             )}

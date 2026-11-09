@@ -1,29 +1,29 @@
 import type { TextLevel } from '../types/board';
+import { readableTextColor } from './tags';
 
+// Couleurs issues du Système de Design de l'État (DSFR 1.15.4).
 export const FONT_FAMILY = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 export const LINE_HEIGHT = 1.3;
-export const INK = '#2b2a27';
-export const INK_MUTED = '#6b6860';
+export const INK = '#161616';
+export const INK_MUTED = '#666666';
 
 export const POSTIT_COLORS = [
-  { id: 'yellow', label: 'Jaune', fill: '#fce588' },
-  { id: 'pink', label: 'Rose', fill: '#f9c6d3' },
-  { id: 'blue', label: 'Bleu', fill: '#bfddf5' },
-  { id: 'green', label: 'Vert', fill: '#c5e8c0' },
-  { id: 'orange', label: 'Orange', fill: '#fbd0a6' },
-  { id: 'violet', label: 'Violet', fill: '#d9cbf2' },
-  { id: 'gray', label: 'Gris clair', fill: '#e7e5e0' },
-  { id: 'white', label: 'Blanc', fill: '#ffffff' },
+  { id: 'yellow', label: 'Jaune', fill: '#fde39c' },
+  { id: 'red', label: 'Rouge clair', fill: '#fcbfbf' },
+  { id: 'gray', label: 'Gris clair', fill: '#e5e5e5' },
+  { id: 'green', label: 'Vert', fill: '#c9fcac' },
+  { id: 'blue', label: 'Bleu', fill: '#e3e3fd' },
+  { id: 'pink', label: 'Rose', fill: '#fddbfa' },
 ] as const;
 
 export const TEXT_COLORS = [
   { id: INK, label: 'Encre' },
-  { id: '#625f58', label: 'Gris' },
-  { id: '#b3261e', label: 'Rouge' },
-  { id: '#b4532a', label: 'Terre cuite' },
-  { id: '#2e7d32', label: 'Vert' },
-  { id: '#1f5fae', label: 'Bleu' },
-  { id: '#6b3fa0', label: 'Violet' },
+  { id: '#666666', label: 'Gris' }, // grey-425
+  { id: '#c9191e', label: 'Rouge' }, // red-marianne-425
+  { id: '#b34000', label: 'Orange' }, // warning-425
+  { id: '#18753c', label: 'Vert' }, // success-425
+  { id: '#0063cb', label: 'Bleu' }, // info-425
+  { id: '#000091', label: 'Bleu France' }, // blue-france-sun-113
 ] as const;
 
 export const TEXT_LEVELS: Record<
@@ -45,6 +45,11 @@ export const POSTIT_SIZES = [
 
 export function postitFill(colorId: string): string {
   return POSTIT_COLORS.find((color) => color.id === colorId)?.fill ?? POSTIT_COLORS[0].fill;
+}
+
+/** Noir ou blanc selon la couleur du post-it : les teintes vives l'exigent. */
+export function postitInk(colorId: string): string {
+  return readableTextColor(postitFill(colorId));
 }
 
 function luminance(hex: string): number {

@@ -15,7 +15,7 @@ import {
   POSTIT_PLACEHOLDER,
   TEXT_PLACEHOLDER,
 } from '../../lib/layout';
-import { FONT_FAMILY, INK, INK_MUTED, LINE_HEIGHT, postitFill, TEXT_LEVELS } from '../../lib/palette';
+import { FONT_FAMILY, INK_MUTED, LINE_HEIGHT, postitFill, postitInk, TEXT_LEVELS } from '../../lib/palette';
 import { useTagStore } from '../../stores/tagStore';
 import type { BoardElement, PostitElement, TextElement } from '../../types/board';
 
@@ -52,11 +52,11 @@ function PostitView({ element, editing }: Props<PostitElement>) {
       <Rect
         width={width}
         height={height}
-        cornerRadius={8}
+        cornerRadius={4}
         fill={postitFill(element.style.color)}
-        stroke="rgba(43, 42, 39, 0.08)"
+        stroke="rgba(22, 22, 22, 0.1)"
         strokeWidth={1}
-        shadowColor="#2b2a27"
+        shadowColor="#161616"
         shadowOpacity={0.14}
         shadowBlur={8}
         shadowOffsetY={2}
@@ -72,7 +72,8 @@ function PostitView({ element, editing }: Props<PostitElement>) {
           fontFamily={FONT_FAMILY}
           fontSize={POSTIT_BODY_SIZE}
           lineHeight={LINE_HEIGHT}
-          fill={body ? INK : INK_MUTED}
+          fill={postitInk(element.style.color)}
+          opacity={body ? 1 : 0.75}
           perfectDrawEnabled={false}
         />
       )}

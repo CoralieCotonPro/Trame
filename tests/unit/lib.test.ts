@@ -1,6 +1,7 @@
 import { boardToScreen, fitCamera, MAX_ZOOM, MIN_ZOOM, screenToBoard, zoomAt } from '../../src/lib/camera';
 import { boundsOf, hitTest, resizeRect } from '../../src/lib/geometry';
-import { contrastRatio, INK, POSTIT_COLORS, TEXT_COLORS, TEXT_LEVELS } from '../../src/lib/palette';
+import { contrastRatio, POSTIT_COLORS, TEXT_COLORS, TEXT_LEVELS } from '../../src/lib/palette';
+import { readableTextColor } from '../../src/lib/tags';
 import { createPostit } from '../../src/lib/elements';
 
 describe('caméra', () => {
@@ -73,14 +74,14 @@ describe('palette', () => {
   test.each(POSTIT_COLORS.map((color) => [color.label, color.fill]))(
     'le texte reste lisible sur un post-it %s',
     (_label, fill) => {
-      expect(contrastRatio(INK, fill)).toBeGreaterThanOrEqual(4.5);
+      expect(contrastRatio(readableTextColor(fill), fill)).toBeGreaterThanOrEqual(4.5);
     },
   );
 
   test.each(TEXT_COLORS.map((color) => [color.label, color.id]))(
     'la couleur de texte %s reste lisible sur le tableau',
     (_label, color) => {
-      expect(contrastRatio(color, '#faf9f6')).toBeGreaterThanOrEqual(4.5);
+      expect(contrastRatio(color, '#f6f6f6')).toBeGreaterThanOrEqual(4.5);
     },
   );
 

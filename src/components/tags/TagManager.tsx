@@ -55,7 +55,7 @@ function ConfirmDelete({
       <button
         type="button"
         onClick={onConfirm}
-        className="rounded-md bg-[#b3261e] px-2 py-1 font-medium text-white"
+        className="rounded-md bg-danger px-2 py-1 font-medium text-white"
       >
         Confirmer la suppression
       </button>
@@ -194,7 +194,7 @@ function AddForm({
         </button>
       </div>
       {rejected && (
-        <p role="alert" className="mt-1 text-xs text-[#b3261e]">
+        <p role="alert" className="mt-1 text-xs text-danger">
           Ce nom est vide ou déjà utilisé.
         </p>
       )}

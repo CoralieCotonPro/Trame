@@ -5,6 +5,7 @@ import { useElementSize } from '../../hooks/useElementSize';
 import { visibleBoardRect } from '../../lib/camera';
 import { handlePosition, handlesFor, rectsIntersect, sortByZ } from '../../lib/geometry';
 import { displayRect } from '../../lib/layout';
+import { registerBoardStage } from '../../lib/boardStage';
 import { isShown } from '../../lib/tags';
 import { useBoardStore } from '../../stores/boardStore';
 import { usePresenceStore } from '../../stores/presenceStore';
@@ -13,7 +14,7 @@ import { useUiStore } from '../../stores/uiStore';
 import type { BoardElement, Camera } from '../../types/board';
 import { ElementView } from '../elements/ElementView';
 
-const ACCENT = '#b4532a';
+const ACCENT = '#000091';
 const GRID_SPACING = 24;
 const CULLING_MARGIN = 200;
 
@@ -21,7 +22,7 @@ function gridStyle(camera: Camera): React.CSSProperties {
   let spacing = GRID_SPACING * camera.zoom;
   while (spacing < 12) spacing *= 5;
   return {
-    backgroundImage: 'radial-gradient(circle, #d6d2c8 1px, transparent 1.2px)',
+    backgroundImage: 'radial-gradient(circle, #dddddd 1px, transparent 1.2px)',
     backgroundSize: `${spacing}px ${spacing}px`,
     backgroundPosition: `${camera.x - spacing / 2}px ${camera.y - spacing / 2}px`,
   };
@@ -52,7 +53,7 @@ function SelectionOverlay({ elements }: { elements: Record<string, BoardElement>
               stroke={ACCENT}
               strokeWidth={1.5}
               strokeScaleEnabled={false}
-              cornerRadius={element.type === 'postit' ? 8 : 2}
+              cornerRadius={element.type === 'postit' ? 4 : 2}
             />
           );
         })}
@@ -79,7 +80,7 @@ function SelectionOverlay({ elements }: { elements: Record<string, BoardElement>
       {marquee && (
         <KonvaRect
           {...marquee}
-          fill="rgba(180, 83, 42, 0.08)"
+          fill="rgba(0, 0, 145, 0.08)"
           stroke={ACCENT}
           strokeWidth={1}
           strokeScaleEnabled={false}
@@ -112,6 +113,7 @@ export function BoardCanvas() {
 
   const filters = useUiStore((state) => state.filters);
   const remoteDrags = usePresenceStore((state) => state.drags);
+  const exporting = useUiStore((state) => state.exporting);
   // Un changement de catalogue peut modifier la hauteur des post-it.
   useTagStore((state) => state.values);
   useTagStore((state) => state.categories);
@@ -130,7 +132,9 @@ export function BoardCanvas() {
     width: view.width + margin * 2,
     height: view.height + margin * 2,
   };
-  const visible = sorted.filter((element) => rectsIntersect(culling, displayRect(element)));
+  const visible = exporting
+    ? sorted
+    : sorted.filter((element) => rectsIntersect(culling, displayRect(element)));
 
   // Les éléments en mouvement ont leur propre calque : le reste n'est pas redessiné.
   const isMoving = (element: BoardElement) =>
@@ -165,6 +169,7 @@ export function BoardCanvas() {
     >
       {size.width > 0 && size.height > 0 && (
         <Stage
+          ref={registerBoardStage}
           width={size.width}
           height={size.height}
           x={camera.x}
@@ -198,7 +203,7 @@ export function BoardCanvas() {
               </Group>
             ))}
           </Layer>
-          <SelectionOverlay elements={elements} />
+          {!exporting && <SelectionOverlay elements={elements} />}
         </Stage>
       )}
     </div>

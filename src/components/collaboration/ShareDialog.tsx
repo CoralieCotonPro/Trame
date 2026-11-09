@@ -156,7 +156,7 @@ function ShareContent({ boardId }: { boardId: string }) {
               </div>
             )}
             {error && (
-              <p role="alert" className="text-sm text-[#b3261e]">
+              <p role="alert" className="text-sm text-danger">
                 {error}
               </p>
             )}
@@ -176,7 +176,7 @@ function ShareContent({ boardId }: { boardId: string }) {
                   <button
                     type="button"
                     onClick={() => void run(() => revokeShareLink(link.id))}
-                    className="rounded-md px-2 py-1 font-medium text-[#b3261e] hover:bg-paper"
+                    className="rounded-md px-2 py-1 font-medium text-danger hover:bg-paper"
                   >
                     Révoquer
                   </button>

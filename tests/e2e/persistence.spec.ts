@@ -90,7 +90,7 @@ test('les titres, le catalogue et une suppression sont conservés', async ({ pag
   await page.getByRole('button', { name: 'Gérer les tags' }).click();
   const manager = page.getByRole('dialog', { name: 'Gérer les tags' });
   await manager.getByRole('button', { name: 'Changer la couleur de M', exact: true }).click();
-  await manager.getByRole('button', { name: 'Couleur Rouge foncé' }).click();
+  await manager.getByRole('button', { name: 'Couleur Rouge' }).click();
   await manager.getByRole('textbox', { name: 'Nouvelle catégorie' }).fill('Équipe');
   await manager.getByRole('button', { name: 'Ajouter la catégorie' }).click();
   await manager.getByRole('button', { name: 'Fermer' }).click();
@@ -105,7 +105,7 @@ test('les titres, le catalogue et une suppression sont conservés', async ({ pag
   await expect(manager.getByRole('region', { name: 'Catégorie Équipe' })).toBeVisible();
   await expect(manager.getByRole('button', { name: 'Changer la couleur de M', exact: true })).toHaveCSS(
     'background-color',
-    'rgb(179, 38, 30)',
+    'rgb(225, 0, 15)',
   );
 });
 

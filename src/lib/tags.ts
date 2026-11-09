@@ -3,20 +3,20 @@ import type { BoardElement, TagCategory, TagFilters, TagValue } from '../types/b
 export const TAG_LABEL_MAX = 40;
 
 export const TAG_COLORS = [
-  { id: '#d6d3cc', label: 'Gris' },
-  { id: '#f2a69b', label: 'Corail' },
-  { id: '#f5b971', label: 'Orange' },
-  { id: '#f2d96b', label: 'Jaune' },
-  { id: '#9fd8a0', label: 'Vert' },
-  { id: '#8fd3c8', label: 'Turquoise' },
-  { id: '#9cc7f0', label: 'Bleu' },
-  { id: '#aab2f0', label: 'Indigo' },
-  { id: '#c9a9ee', label: 'Violet' },
-  { id: '#f2a7c8', label: 'Rose' },
-  { id: '#4a4a48', label: 'Anthracite' },
-  { id: '#b3261e', label: 'Rouge foncé' },
-  { id: '#2e7d32', label: 'Vert foncé' },
-  { id: '#1f5fae', label: 'Bleu foncé' },
+  { id: '#aea397', label: 'Gris' }, // beige-gris-galet
+  { id: '#ce614a', label: 'Corail' }, // pink-tuile
+  { id: '#e4794a', label: 'Orange' }, // orange-terre-battue
+  { id: '#c8aa39', label: 'Jaune' }, // yellow-tournesol
+  { id: '#68a532', label: 'Vert' }, // green-bourgeon
+  { id: '#009099', label: 'Turquoise' }, // green-archipel
+  { id: '#417dc4', label: 'Bleu' }, // blue-cumulus
+  { id: '#6a6af4', label: 'Indigo' }, // blue-france main
+  { id: '#a558a0', label: 'Violet' }, // purple-glycine
+  { id: '#e18b76', label: 'Rose' }, // pink-macaron
+  { id: '#3a3a3a', label: 'Anthracite' }, // grey-200
+  { id: '#e1000f', label: 'Rouge' }, // red-marianne main
+  { id: '#18753c', label: 'Vert foncé' }, // success-425
+  { id: '#000091', label: 'Bleu France' }, // blue-france-sun-113
 ] as const;
 
 const color = (index: number) => (TAG_COLORS[index] as (typeof TAG_COLORS)[number]).id;

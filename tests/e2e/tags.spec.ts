@@ -138,12 +138,12 @@ test('une couleur modifiée se propage à tous les post-it concernés, à l’é
   await manager(page).getByRole('button', { name: 'Changer la couleur de M', exact: true }).click();
   await manager(page)
     .getByRole('group', { name: 'Couleurs pour M' })
-    .getByRole('button', { name: 'Couleur Rouge foncé' })
+    .getByRole('button', { name: 'Couleur Rouge' })
     .click();
   await manager(page).getByRole('button', { name: 'Fermer' }).click();
 
-  await expect(a).toHaveAttribute('data-tag-colors', '#b3261e');
-  await expect(b).toHaveAttribute('data-tag-colors', '#b3261e');
+  await expect(a).toHaveAttribute('data-tag-colors', '#e1000f');
+  await expect(b).toHaveAttribute('data-tag-colors', '#e1000f');
   await expect(other).toHaveAttribute('data-tag-colors', otherColor ?? '');
   expect(Buffer.compare(before, await page.screenshot())).not.toBe(0);
 });

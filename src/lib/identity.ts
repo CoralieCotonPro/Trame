@@ -1,5 +1,5 @@
-const NAME_KEY = 'envergo:display-name';
-const COLORS = ['#b4532a', '#1f5fae', '#2e7d32', '#6b3fa0', '#b3261e', '#00695c', '#8a5a00', '#ad1457'];
+const NAME_KEY = 'trame:display-name';
+const COLORS = ['#000091', '#c9191e', '#18753c', '#0063cb', '#b34000', '#3a3a3a'];
 
 /** Identifie cet onglet : un compte peut être ouvert à plusieurs endroits. */
 export const clientId = crypto.randomUUID();

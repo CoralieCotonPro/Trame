@@ -59,7 +59,7 @@ function BoardRow({ board, canDelete, onDeleted, onError }: BoardRowProps) {
           <button
             type="button"
             onClick={() => void confirm()}
-            className="rounded-md bg-[#b3261e] px-2 py-1 font-medium text-white"
+            className="rounded-md bg-danger px-2 py-1 font-medium text-white"
           >
             Confirmer la suppression
           </button>
@@ -135,7 +135,7 @@ export function HomePage({ userId, isGuest }: { userId: string; isGuest: boolean
         )}
 
         {error && (
-          <p role="alert" className="mt-3 text-sm text-[#b3261e]">
+          <p role="alert" className="mt-3 text-sm text-danger">
             {error}
           </p>
         )}
