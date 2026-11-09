@@ -32,9 +32,14 @@ Compromis de Konva : le canvas ne sait pas éditer du texte. Pendant l'édition,
 
 ## Règles du canvas
 
+- L'application cible l'ordinateur. La prise en charge des tablettes est volontairement hors périmètre.
+
 - Les coordonnées sont stockées dans le repère du tableau. La caméra (`x`, `y`, `zoom`) reste locale à chaque personne et n'est jamais sauvegardée sur le serveur.
+- Comme dans FigJam, glisser sur le vide trace une sélection rectangulaire (avec Shift, elle complète la sélection). Le tableau se déplace avec Espace + glisser, l'outil Main, le bouton central de la souris ou le défilement à deux doigts.
 - Un post-it ne coupe jamais son contenu : sa hauteur affichée est au moins celle de son contenu.
 - Seuls les éléments visibles à l'écran sont rendus. L'élément en cours de déplacement passe sur un calque dédié.
+- Konva ne fait que dessiner : les clics sont résolus par un calcul géométrique sur les rectangles (`lib/geometry.ts`), plus léger que la détection de Konva.
+- Le canvas étant invisible au clavier et aux lecteurs d'écran, une liste HTML masquée (`ElementsA11yList`) rend chaque élément atteignable. Les tests navigateur s'appuient aussi dessus.
 - Chaque action produit une opération et son inverse, ce qui sert à la fois à l'annulation et à la sauvegarde. L'annulation ne concerne que ses propres actions.
 
 ## Modèle de données (étape 4)

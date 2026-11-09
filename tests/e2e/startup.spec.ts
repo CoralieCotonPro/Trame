@@ -10,7 +10,7 @@ test("l'application démarre en français avec une surface Konva, sans erreur", 
   await page.goto('/');
 
   await expect(page.locator('html')).toHaveAttribute('lang', 'fr');
-  await expect(page.getByRole('heading', { name: 'Tableau blanc Envergo' })).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Nom du tableau' })).toBeVisible();
 
   const canvas = page.getByTestId('board-canvas').locator('canvas').first();
   await expect(canvas).toBeVisible();

@@ -2,12 +2,12 @@
 
 Tableau blanc collaboratif et libre pour construire collectivement la roadmap d'Envergo.
 
-> **État actuel : étape 1 sur 6.** Le projet est initialisé, mais le tableau n'est pas encore utilisable.
+> **État actuel : étape 2 sur 6.** Le tableau fonctionne en local, pour une seule personne. Rien n'est encore enregistré : un rechargement de la page efface tout, jusqu'à l'étape 4.
 
 | Étape | Contenu | État |
 | --- | --- | --- |
 | 1 | Architecture et initialisation | Validée |
-| 2 | Tableau local : post-it, texte, déplacement, zoom | À faire |
+| 2 | Tableau local : post-it, texte, déplacement, zoom | Validée |
 | 3 | Tags, couleurs et filtres | À faire |
 | 4 | Supabase et sauvegarde persistante | À faire |
 | 5 | Temps réel, participants, partage sécurisé | À faire |
@@ -25,6 +25,24 @@ npm run dev
 ```
 
 Ouvrez ensuite l'adresse affichée, en général <http://localhost:5173>.
+
+## Raccourcis
+
+| Action | Raccourci |
+| --- | --- |
+| Nouveau post-it / nouveau texte | `N` / `T` |
+| Outil sélection / main | `V` / `H` |
+| Déplacer le tableau | `Espace` + glisser, outil Main, ou deux doigts sur le trackpad |
+| Sélection rectangulaire | Glisser sur le vide (avec `Shift` : ajoute à la sélection) |
+| Sélection multiple | `Shift` + clic |
+| Modifier l'élément sélectionné | Double-clic ou `Entrée` |
+| Valider la saisie | `Échap` ou `Ctrl/Cmd+Entrée` |
+| Copier, coller, dupliquer | `Ctrl/Cmd+C`, `V`, `D` |
+| Tout sélectionner | `Ctrl/Cmd+A` |
+| Annuler / rétablir | `Ctrl/Cmd+Z` / `Ctrl/Cmd+Shift+Z` |
+| Supprimer | `Suppr` ou `Retour arrière` |
+| Déplacer finement | Flèches (avec `Shift` : plus grand pas) |
+| Zoomer | Molette, ou `Ctrl/Cmd` + molette |
 
 ## Commandes
 
