@@ -61,6 +61,35 @@ export function hitTest(
   return null;
 }
 
+/**
+ * Centre des derniers éléments posés. Seuls ceux proches du plus récent comptent :
+ * un élément isolé au loin ne doit pas placer la vue dans le vide.
+ */
+export function recentCentroid(
+  elements: BoardElement[],
+  getRect: (element: BoardElement) => Rect,
+  count = 5,
+  radius = 1000,
+): Point | null {
+  const recent = [...elements]
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    .slice(0, count)
+    .map((element) => {
+      const rect = getRect(element);
+      return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+    });
+  const [latest] = recent;
+  if (!latest) return null;
+
+  const near = recent.filter(
+    (point) => Math.hypot(point.x - latest.x, point.y - latest.y) <= radius,
+  );
+  return {
+    x: near.reduce((sum, point) => sum + point.x, 0) / near.length,
+    y: near.reduce((sum, point) => sum + point.y, 0) / near.length,
+  };
+}
+
 export function handlesFor(type: BoardElement['type']): Handle[] {
   return type === 'postit' ? ['nw', 'ne', 'sw', 'se'] : ['w', 'e'];
 }

@@ -1,6 +1,6 @@
 import { fitCamera, screenToBoard, visibleBoardRect, zoomAt } from '../lib/camera';
 import { cloneElement, createPostit, createText } from '../lib/elements';
-import { boundsOf, sortByZ } from '../lib/geometry';
+import { boundsOf, recentCentroid, sortByZ } from '../lib/geometry';
 import { displayRect } from '../lib/layout';
 import { isShown, matchesFilters, valuesOf } from '../lib/tags';
 import type { BoardElement, ElementPatch, Point } from '../types/board';
@@ -267,6 +267,18 @@ export function fitToContent() {
   const bounds = boundsOf(visibleElements().map(displayRect));
   if (bounds) ui().set({ camera: fitCamera(bounds, ui().viewport) });
   else ui().set({ camera: { x: 0, y: 0, zoom: 1 } });
+}
+
+/** À l'ouverture : à 100 %, sur la zone où l'on a travaillé en dernier. */
+export function focusRecentWork() {
+  const elements = visibleElements();
+  const postits = elements.filter((element) => element.type === 'postit');
+  const center = recentCentroid(postits.length > 0 ? postits : elements, displayRect);
+  if (!center) return;
+  const { viewport } = ui();
+  ui().set({
+    camera: { zoom: 1, x: viewport.width / 2 - center.x, y: viewport.height / 2 - center.y },
+  });
 }
 
 /** Amène un élément au centre de la vue s'il n'y est pas déjà visible. */

@@ -9,7 +9,7 @@ import {
   type Op,
   type PatchOp,
 } from '../lib/ops';
-import { fitToContent } from '../stores/actions';
+import { focusRecentWork } from '../stores/actions';
 import { useBoardStore } from '../stores/boardStore';
 import { useSyncStore } from '../stores/syncStore';
 import { useTagStore } from '../stores/tagStore';
@@ -402,5 +402,5 @@ export function closeBoard() {
 }
 
 export function revealContent() {
-  fitToContent();
+  focusRecentWork();
 }

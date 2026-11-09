@@ -3,20 +3,23 @@ import type { BoardElement, TagCategory, TagFilters, TagValue } from '../types/b
 export const TAG_LABEL_MAX = 40;
 
 export const TAG_COLORS = [
-  { id: '#aea397', label: 'Gris' }, // beige-gris-galet
-  { id: '#ce614a', label: 'Corail' }, // pink-tuile
-  { id: '#e4794a', label: 'Orange' }, // orange-terre-battue
-  { id: '#c8aa39', label: 'Jaune' }, // yellow-tournesol
-  { id: '#68a532', label: 'Vert' }, // green-bourgeon
-  { id: '#009099', label: 'Turquoise' }, // green-archipel
-  { id: '#417dc4', label: 'Bleu' }, // blue-cumulus
-  { id: '#6a6af4', label: 'Indigo' }, // blue-france main
-  { id: '#a558a0', label: 'Violet' }, // purple-glycine
-  { id: '#e18b76', label: 'Rose' }, // pink-macaron
-  { id: '#3a3a3a', label: 'Anthracite' }, // grey-200
-  { id: '#e1000f', label: 'Rouge' }, // red-marianne main
-  { id: '#18753c', label: 'Vert foncé' }, // success-425
-  { id: '#000091', label: 'Bleu France' }, // blue-france-sun-113
+  // Cyan, magenta, jaune et noir purs, puis leurs teintes à 70, 40 et 20 %.
+  { id: '#00ffff', label: 'Cyan pur' },
+  { id: '#4dffff', label: 'Cyan 70 %' },
+  { id: '#99ffff', label: 'Cyan 40 %' },
+  { id: '#ccffff', label: 'Cyan 20 %' },
+  { id: '#ff00ff', label: 'Magenta pur' },
+  { id: '#ff4dff', label: 'Magenta 70 %' },
+  { id: '#ff99ff', label: 'Magenta 40 %' },
+  { id: '#ffccff', label: 'Magenta 20 %' },
+  { id: '#ffff00', label: 'Jaune pur' },
+  { id: '#ffff4d', label: 'Jaune 70 %' },
+  { id: '#ffff99', label: 'Jaune 40 %' },
+  { id: '#ffffcc', label: 'Jaune 20 %' },
+  { id: '#000000', label: 'Noir pur' },
+  { id: '#4d4d4d', label: 'Noir 70 %' },
+  { id: '#999999', label: 'Noir 40 %' },
+  { id: '#cccccc', label: 'Noir 20 %' },
 ] as const;
 
 const color = (index: number) => (TAG_COLORS[index] as (typeof TAG_COLORS)[number]).id;
@@ -25,30 +28,30 @@ export const DEFAULT_CATEGORIES: { name: string; values: [string, string][] }[] 
   {
     name: 'Sizing',
     values: [
-      ['XS', color(5)],
-      ['S', color(6)],
-      ['M', color(7)],
-      ['L', color(8)],
-      ['XL', color(9)],
+      ['XS', color(3)],
+      ['S', color(2)],
+      ['M', color(1)],
+      ['L', color(0)],
+      ['XL', color(12)],
     ],
   },
   {
     name: 'Statut',
     values: [
-      ['À lancer', color(0)],
-      ['En conception', color(3)],
-      ['Prêt à spec', color(2)],
+      ['À lancer', color(15)],
+      ['En conception', color(10)],
+      ['Prêt à spec', color(8)],
       ['Affiné', color(6)],
-      ['En dev', color(13)],
+      ['En dev', color(4)],
       ['En prod', color(12)],
     ],
   },
   {
     name: 'Thématique',
     values: [
-      ['Avis réglementaire', color(4)],
+      ['Avis réglementaire', color(5)],
       ['Simulateur', color(9)],
-      ['Admin/data', color(10)],
+      ['Admin/data', color(13)],
     ],
   },
 ];

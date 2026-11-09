@@ -91,10 +91,13 @@ export function clearRemoteDrag(elementId: string) {
 }
 
 function syncParticipants(channel: RealtimeChannel) {
-  const state = channel.presenceState<Omit<Participant, 'clientId'>>();
+  const state = channel.presenceState<Pick<Participant, 'name' | 'color'>>();
+  const known = new Map(presence().participants.map((item) => [item.clientId, item.editing]));
   const participants = Object.entries(state).flatMap(([id, metas]) => {
     const [meta] = metas;
-    return meta ? [{ clientId: id, name: meta.name, color: meta.color, editing: meta.editing }] : [];
+    return meta
+      ? [{ clientId: id, name: meta.name, color: meta.color, editing: known.get(id) ?? null }]
+      : [];
   });
   participants.sort((a, b) => a.name.localeCompare(b.name, 'fr'));
 
@@ -105,9 +108,30 @@ function syncParticipants(channel: RealtimeChannel) {
   presence().set({ participants, cursors });
 }
 
+/**
+ * Une seule annonce par connexion : Supabase ferme le canal au-delà de 5 mises à jour
+ * de présence en 30 secondes. Ce qui change souvent passe par Broadcast.
+ */
 function trackSelf() {
   if (!connection || !isJoined(connection.presence)) return;
-  void connection.presence.track({ ...connection.me, editing: connection.editing });
+  void connection.presence.track({ ...connection.me });
+}
+
+function sendEditing() {
+  if (!connection || !isJoined(connection.presence)) return;
+  void connection.presence.send({
+    type: 'broadcast',
+    event: 'editing',
+    payload: { c: connection.clientId, id: connection.editing },
+  });
+}
+
+function receiveEditing({ c, id }: { c: string; id: string | null }) {
+  presence().set({
+    participants: presence().participants.map((item) =>
+      item.clientId === c ? { ...item, editing: id } : item,
+    ),
+  });
 }
 
 export async function connect(
@@ -132,6 +156,13 @@ export async function connect(
       config: { private: true, broadcast: { self: false }, presence: { key: clientId } },
     })
     .on('presence', { event: 'sync' }, () => syncParticipants(presenceChannel))
+    // Un nouvel arrivant doit savoir qui est déjà en train d'écrire.
+    .on('presence', { event: 'join' }, () => {
+      if (connection?.editing) sendEditing();
+    })
+    .on('broadcast', { event: 'editing' }, ({ payload }) =>
+      receiveEditing(payload as { c: string; id: string | null }),
+    )
     .on('broadcast', { event: 'cursor' }, ({ payload }) => {
       const { c, x, y } = payload as { c: string; x: number | null; y: number | null };
       const cursors = { ...presence().cursors };
@@ -172,7 +203,7 @@ export function disconnect() {
 export function setEditing(elementId: string | null) {
   if (!connection || connection.editing === elementId) return;
   connection.editing = elementId;
-  trackSelf();
+  sendEditing();
 }
 
 /** Plus il y a de monde, moins chacun émet : chaque message est multiplié par les destinataires. */

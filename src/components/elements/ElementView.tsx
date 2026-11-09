@@ -34,6 +34,10 @@ function drawBadges(context: Context, badges: PlacedBadge[]) {
     canvas.beginPath();
     canvas.roundRect(badge.x, badge.y, badge.width, BADGE_HEIGHT, BADGE_RADIUS);
     canvas.fill();
+    // Fin contour : les teintes claires restent visibles sur un post-it clair.
+    canvas.strokeStyle = 'rgba(22, 22, 22, 0.25)';
+    canvas.lineWidth = 1;
+    canvas.stroke();
     canvas.fillStyle = badge.textColor;
     canvas.fillText(badge.text, badge.x + BADGE_PADDING_X, badge.y + BADGE_HEIGHT / 2 + 0.5);
   }

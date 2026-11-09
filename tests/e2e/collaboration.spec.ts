@@ -616,3 +616,41 @@ test('10 participants qui bougent en même temps restent sous la limite de messa
   expect(sent).toBeGreaterThan(0);
   expect(receivedPerSecond).toBeLessThanOrEqual(100);
 });
+
+test('écrire plusieurs post-it d’affilée ne coupe pas la présence', async ({ page, browser }) => {
+  const { other } = await twoSessions(page, browser);
+
+  // Au-delà de 5 annonces de présence en 30 s, Supabase fermerait le canal.
+  for (let index = 0; index < 8; index += 1) {
+    await addPostit(page, `Rafale ${index}`);
+  }
+  await saved(page);
+  await page.waitForTimeout(1500);
+
+  await expect(participants(other, 2)).toBeVisible();
+  await expect(participants(page, 2)).toBeVisible();
+
+  await page.mouse.move(600, 600);
+  await page.mouse.move(640, 640, { steps: 4 });
+  await expect(other.getByTestId('remote-cursor')).toHaveCount(1);
+
+  const point = await center(page, items(page).filter({ hasText: 'Rafale 7' }));
+  await page.mouse.dblclick(point.x, point.y);
+  await expect(other.getByText(/modifie…/)).toBeVisible();
+
+});
+
+test('un participant qui arrive voit qui est déjà en train d’écrire', async ({ page, browser }) => {
+  const owner = await createUser();
+  const boardId = await board(owner);
+  await openBoardAs(page, owner, boardId);
+  const postit = await addPostit(page, 'En cours');
+  await saved(page);
+  const point = await center(page, postit);
+  await page.mouse.dblclick(point.x, point.y);
+  await expect(page.getByRole('textbox', { name: 'Texte du post-it' })).toBeVisible();
+
+  const late = await newPage(browser);
+  await openBoardAs(late, owner, boardId);
+  await expect(late.getByText(/modifie…/)).toBeVisible();
+});

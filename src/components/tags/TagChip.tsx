@@ -18,9 +18,13 @@ export function TagChip({ label, color, selected, onClick, ariaLabel }: Props) {
       aria-label={ariaLabel}
       onClick={onClick}
       className={`inline-flex h-7 max-w-full items-center gap-1 rounded-md px-2 text-xs font-semibold ${
-        selected ? 'ring-2 ring-ink ring-offset-1' : 'opacity-85 hover:opacity-100'
+        selected ? 'ring-2 ring-ink ring-offset-1' : 'hover:brightness-95'
       }`}
-      style={{ background: color, color: readableTextColor(color) }}
+      style={{
+        background: color,
+        color: readableTextColor(color),
+        boxShadow: selected ? undefined : 'inset 0 0 0 1px rgba(22, 22, 22, 0.25)',
+      }}
     >
       {selected && <Check size={12} strokeWidth={3} aria-hidden="true" />}
       <span className="truncate">{label}</span>

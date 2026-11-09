@@ -89,7 +89,11 @@ function PostitEditor({ element }: { element: PostitElement }) {
             <span
               key={badge.valueId}
               className="rounded-[5px] px-[7px] text-xs leading-5 font-semibold"
-              style={{ background: badge.color, color: badge.textColor }}
+              style={{
+                background: badge.color,
+                color: badge.textColor,
+                boxShadow: 'inset 0 0 0 1px rgba(22, 22, 22, 0.25)',
+              }}
             >
               {badge.text}
             </span>
