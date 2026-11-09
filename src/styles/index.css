@@ -1,0 +1,42 @@
+@import 'tailwindcss';
+
+/* Design system : un seul endroit pour les couleurs, rayons et ombres de l'interface. */
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  --color-paper: #faf9f6;
+  --color-surface: #ffffff;
+  --color-line: #e6e3dc;
+  --color-ink: #2b2a27;
+  --color-ink-soft: #625f58;
+  --color-accent: #b4532a;
+
+  --radius-panel: 12px;
+  --shadow-panel: 0 1px 2px rgb(43 42 39 / 0.06), 0 6px 20px rgb(43 42 39 / 0.08);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
