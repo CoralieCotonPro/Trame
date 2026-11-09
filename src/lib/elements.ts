@@ -17,13 +17,18 @@ function base(position: Point, zIndex: number) {
   };
 }
 
-export function createPostit(position: Point, zIndex: number): PostitElement {
+export function createPostit(
+  position: Point,
+  zIndex: number,
+  tags: Record<string, string> = {},
+): PostitElement {
   return {
+    tags,
     ...base(position, zIndex),
     type: 'postit',
     width: DEFAULT_POSTIT.width,
     height: DEFAULT_POSTIT.height,
-    content: { title: '', body: '' },
+    content: { body: '' },
     style: { color: 'yellow' },
   };
 }

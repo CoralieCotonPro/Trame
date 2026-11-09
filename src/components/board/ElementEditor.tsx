@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState, type FocusEvent, type KeyboardEvent } from 'react';
-import { displayRect, POSTIT_BODY_SIZE, POSTIT_PADDING, POSTIT_TITLE_GAP, POSTIT_TITLE_SIZE } from '../../lib/layout';
+import { displayRect, layoutPostit, POSTIT_BODY_SIZE, POSTIT_PADDING } from '../../lib/layout';
 import { FONT_FAMILY, INK, LINE_HEIGHT, postitFill, TEXT_LEVELS } from '../../lib/palette';
 import { finishEditing } from '../../stores/actions';
 import { useBoardStore } from '../../stores/boardStore';
@@ -53,18 +53,17 @@ function useFinish(id: string, buildPatch: () => ElementPatch) {
 }
 
 function PostitEditor({ element }: { element: PostitElement }) {
-  const [title, setTitle] = useState(element.content.title);
   const [body, setBody] = useState(element.content.body);
-  const titleRef = useAutoHeight(title, element.width);
   const bodyRef = useAutoHeight(body, element.width);
   useFocusAtEnd(bodyRef);
-  const { onBlur, onKeyDown } = useFinish(element.id, () => ({ content: { title, body } }));
+  const { onBlur, onKeyDown } = useFinish(element.id, () => ({ content: { body } }));
+  const { badges } = layoutPostit(element);
 
   return (
     <div
       onBlur={onBlur}
       onKeyDown={onKeyDown}
-      className="rounded-lg"
+      className="flex flex-col rounded-lg"
       style={{
         width: element.width,
         minHeight: displayRect(element).height,
@@ -73,23 +72,6 @@ function PostitEditor({ element }: { element: PostitElement }) {
         color: INK,
       }}
     >
-      <textarea
-        ref={titleRef}
-        rows={1}
-        value={title}
-        maxLength={200}
-        onChange={(event) => setTitle(event.target.value.replace(/\n/g, ' '))}
-        placeholder="Titre (facultatif)"
-        aria-label="Titre du post-it"
-        className={fieldClass}
-        style={{
-          fontFamily: FONT_FAMILY,
-          fontSize: POSTIT_TITLE_SIZE,
-          lineHeight: LINE_HEIGHT,
-          fontWeight: 700,
-          marginBottom: POSTIT_TITLE_GAP,
-        }}
-      />
       <textarea
         ref={bodyRef}
         rows={1}
@@ -101,6 +83,19 @@ function PostitEditor({ element }: { element: PostitElement }) {
         className={fieldClass}
         style={{ fontFamily: FONT_FAMILY, fontSize: POSTIT_BODY_SIZE, lineHeight: LINE_HEIGHT }}
       />
+      {badges.length > 0 && (
+        <div className="mt-auto flex flex-wrap gap-1 pt-2.5">
+          {badges.map((badge) => (
+            <span
+              key={badge.valueId}
+              className="rounded-[5px] px-[7px] text-xs leading-5 font-semibold"
+              style={{ background: badge.color, color: badge.textColor }}
+            >
+              {badge.text}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

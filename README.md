@@ -2,13 +2,13 @@
 
 Tableau blanc collaboratif et libre pour construire collectivement la roadmap d'Envergo.
 
-> **État actuel : étape 2 sur 6.** Le tableau fonctionne en local, pour une seule personne. Rien n'est encore enregistré : un rechargement de la page efface tout, jusqu'à l'étape 4.
+> **État actuel : étape 3 sur 6.** Le tableau, les tags et les filtres fonctionnent en local, pour une seule personne. Rien n'est encore enregistré : un rechargement de la page efface tout, jusqu'à l'étape 4.
 
 | Étape | Contenu | État |
 | --- | --- | --- |
 | 1 | Architecture et initialisation | Validée |
 | 2 | Tableau local : post-it, texte, déplacement, zoom | Validée |
-| 3 | Tags, couleurs et filtres | À faire |
+| 3 | Tags, couleurs et filtres | Validée |
 | 4 | Supabase et sauvegarde persistante | À faire |
 | 5 | Temps réel, participants, partage sécurisé | À faire |
 | 6 | Exports, tests complémentaires, optimisations, Netlify | À faire |

@@ -63,6 +63,17 @@ function MainMenu() {
             checked={doubleClickCreates}
             onChange={(checked) => setUi({ doubleClickCreates: checked })}
           />
+          <div className="mx-2 my-1 h-px bg-line" />
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              setUi({ tagManagerOpen: true });
+            }}
+            className="block w-full rounded-md px-2 py-2 text-left text-sm hover:bg-paper"
+          >
+            Gérer les tags
+          </button>
         </div>
       )}
     </div>
@@ -74,7 +85,7 @@ export function TopBar() {
   const rename = useBoardStore((state) => state.rename);
 
   return (
-    <header className="pointer-events-none absolute inset-x-4 top-4 z-20 flex items-start justify-between gap-4">
+    <header className="pointer-events-none absolute inset-x-4 top-4 z-30 flex items-start justify-between gap-4">
       <div className="pointer-events-auto flex min-w-0 items-center gap-3 rounded-panel border border-line bg-surface px-3 py-1.5 shadow-panel">
         <input
           value={name}

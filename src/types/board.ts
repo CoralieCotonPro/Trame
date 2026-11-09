@@ -16,8 +16,10 @@ interface ElementBase {
 
 export interface PostitElement extends ElementBase {
   type: 'postit';
-  content: { title: string; body: string };
+  content: { body: string };
   style: { color: string };
+  /** Identifiant de valeur par catégorie : libellés et couleurs restent dans le catalogue. */
+  tags: Record<string, string>;
 }
 
 export interface TextElement extends ElementBase {
@@ -36,7 +38,26 @@ export interface ElementPatch {
   zIndex?: number;
   content?: Partial<PostitElement['content']> | Partial<TextElement['content']>;
   style?: Partial<PostitElement['style']> | Partial<TextElement['style']>;
+  /** Par catégorie : l'identifiant de la nouvelle valeur, ou `null` pour retirer le tag. */
+  tags?: Record<string, string | null>;
 }
+
+export interface TagCategory {
+  id: string;
+  name: string;
+  sortOrder: number;
+}
+
+export interface TagValue {
+  id: string;
+  categoryId: string;
+  label: string;
+  color: string;
+  sortOrder: number;
+}
+
+/** Valeurs retenues, par catégorie. */
+export type TagFilters = Record<string, string[]>;
 
 export interface Point {
   x: number;

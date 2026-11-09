@@ -2,8 +2,10 @@ import { fitCamera, screenToBoard, visibleBoardRect, zoomAt } from '../lib/camer
 import { cloneElement, createPostit, createText } from '../lib/elements';
 import { boundsOf, sortByZ } from '../lib/geometry';
 import { displayRect } from '../lib/layout';
+import { isShown, matchesFilters, valuesOf } from '../lib/tags';
 import type { BoardElement, ElementPatch, Point } from '../types/board';
 import { useBoardStore } from './boardStore';
+import { useTagStore } from './tagStore';
 import { useUiStore } from './uiStore';
 
 const board = () => useBoardStore.getState();
@@ -17,9 +19,26 @@ function allElements(): BoardElement[] {
   return Object.values(board().elements);
 }
 
+/** Éléments non masqués par les filtres : les seuls que l'on peut atteindre. */
+export function visibleElements(): BoardElement[] {
+  const { filters, selectedIds } = ui();
+  return allElements().filter((element) => isShown(element, filters, selectedIds));
+}
+
 export function selectedElements(): BoardElement[] {
   const { elements } = board();
   return sortByZ([...ui().selectedIds].flatMap((id) => elements[id] ?? []));
+}
+
+/** Retire de la sélection ce que les filtres viennent de masquer. */
+function pruneSelection() {
+  const { editingId, selectedIds, filters } = ui();
+  const { elements } = board();
+  const kept = [...selectedIds].filter((id) => {
+    const element = elements[id];
+    return element && (id === editingId || matchesFilters(element, filters));
+  });
+  if (kept.length !== selectedIds.size) ui().select(kept);
 }
 
 function topZ(): number {
@@ -50,7 +69,13 @@ function insertAndEdit(element: BoardElement) {
 /** Sans position, l'élément apparaît sous le curseur, ou au centre de la vue. */
 export function addPostit(at?: Point) {
   const center = at ?? ui().cursor ?? viewportCenter();
-  const element = createPostit(center, topZ() + 1);
+  // Sous un filtre, le nouveau post-it reprend les valeurs filtrées pour rester visible.
+  const tags = Object.fromEntries(
+    Object.entries(ui().filters).flatMap(([categoryId, [first]]) =>
+      first ? [[categoryId, first]] : [],
+    ),
+  );
+  const element = createPostit(center, topZ() + 1, tags);
   const spot = freeSpot({ x: center.x - element.width / 2, y: center.y - element.height / 2 });
   insertAndEdit({ ...element, ...spot });
 }
@@ -119,7 +144,64 @@ export function paste() {
 }
 
 export function selectAll() {
-  ui().select(allElements().map((element) => element.id));
+  ui().select(visibleElements().map((element) => element.id));
+}
+
+export function setTagOnSelection(categoryId: string, valueId: string | null) {
+  const patches: Record<string, ElementPatch> = {};
+  for (const element of selectedElements()) {
+    if (element.type === 'postit') patches[element.id] = { tags: { [categoryId]: valueId } };
+  }
+  board().patchElements(patches);
+}
+
+export function openTagPicker(x: number, y: number, focusCategoryId: string | null = null) {
+  ui().set({ tagPicker: { x, y, focusCategoryId }, contextMenu: null });
+}
+
+export function toggleFilter(categoryId: string, valueId: string) {
+  const current = ui().filters[categoryId] ?? [];
+  const next = current.includes(valueId)
+    ? current.filter((id) => id !== valueId)
+    : [...current, valueId];
+  ui().set({ filters: { ...ui().filters, [categoryId]: next } });
+  pruneSelection();
+}
+
+export function resetFilters() {
+  ui().set({ filters: {} });
+}
+
+export function tagUsageCount(valueIds: string[]): number {
+  return allElements().filter(
+    (element) =>
+      element.type === 'postit' && Object.values(element.tags).some((id) => valueIds.includes(id)),
+  ).length;
+}
+
+function forgetValues(valueIds: string[]) {
+  board().purgeTags(new Set(valueIds));
+  const filters = Object.fromEntries(
+    Object.entries(ui().filters).map(([categoryId, ids]) => [
+      categoryId,
+      ids.filter((id) => !valueIds.includes(id)),
+    ]),
+  );
+  ui().set({ filters });
+}
+
+export function deleteTagValue(valueId: string) {
+  forgetValues([valueId]);
+  useTagStore.getState().removeValue(valueId);
+}
+
+export function deleteTagCategory(categoryId: string) {
+  const { values, removeCategory } = useTagStore.getState();
+  forgetValues(valuesOf(values, categoryId).map((value) => value.id));
+  const filters = { ...ui().filters };
+  delete filters[categoryId];
+  ui().set({ filters });
+  removeCategory(categoryId);
 }
 
 function reorder(position: 'front' | 'back') {
@@ -157,6 +239,7 @@ export function patchSelection(patch: ElementPatch) {
 function keepExisting(ids: string[]) {
   ui().set({ editingId: null });
   ui().select(ids);
+  pruneSelection();
 }
 
 export const undo = () => keepExisting(board().undo());
@@ -181,7 +264,7 @@ export function resetZoom() {
 }
 
 export function fitToContent() {
-  const bounds = boundsOf(allElements().map(displayRect));
+  const bounds = boundsOf(visibleElements().map(displayRect));
   if (bounds) ui().set({ camera: fitCamera(bounds, ui().viewport) });
   else ui().set({ camera: { x: 0, y: 0, zoom: 1 } });
 }

@@ -21,6 +21,7 @@ interface BoardState {
   addElements: (elements: BoardElement[]) => void;
   patchElements: (patches: Record<string, ElementPatch>) => void;
   removeElements: (ids: string[]) => void;
+  purgeTags: (valueIds: Set<string>) => void;
   undo: () => string[];
   redo: () => string[];
 }
@@ -35,12 +36,22 @@ function withChanges(elements: Elements, changes: ElementChange[], side: 'before
   return next;
 }
 
-function patched(element: BoardElement, patch: ElementPatch): BoardElement {
+function mergedTags(current: Record<string, string>, changes: Record<string, string | null>) {
+  const next = { ...current };
+  for (const [categoryId, valueId] of Object.entries(changes)) {
+    if (valueId) next[categoryId] = valueId;
+    else delete next[categoryId];
+  }
+  return next;
+}
+
+function patched(element: BoardElement, { tags, ...patch }: ElementPatch): BoardElement {
   return {
     ...element,
     ...patch,
     content: { ...element.content, ...patch.content },
     style: { ...element.style, ...patch.style },
+    ...(element.type === 'postit' && tags ? { tags: mergedTags(element.tags, tags) } : {}),
     updatedAt: new Date().toISOString(),
   } as BoardElement;
 }
@@ -85,6 +96,21 @@ export const useBoardStore = create<BoardState>((set, get) => {
         }),
       );
     },
+
+    // Hors historique : la suppression d'un tag du catalogue ne s'annule pas.
+    // Une annulation peut donc ramener un identifiant disparu, que resolveTags ignore.
+    purgeTags: (valueIds) =>
+      set((state) => {
+        const elements = { ...state.elements };
+        for (const element of Object.values(state.elements)) {
+          if (element.type !== 'postit') continue;
+          const kept = Object.entries(element.tags).filter(([, id]) => !valueIds.has(id));
+          if (kept.length !== Object.keys(element.tags).length) {
+            elements[element.id] = { ...element, tags: Object.fromEntries(kept) };
+          }
+        }
+        return { elements };
+      }),
 
     undo: () => {
       const changes = get().past.at(-1);

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Camera, Point, Rect } from '../types/board';
+import type { Camera, Point, Rect, TagFilters } from '../types/board';
 
 export type Tool = 'select' | 'hand';
 
@@ -23,6 +23,10 @@ interface UiState {
   resizePreview: { id: string; rect: Rect } | null;
   marquee: Rect | null;
   contextMenu: ContextMenuState | null;
+  tagPicker: (ContextMenuState & { focusCategoryId: string | null }) | null;
+  tagManagerOpen: boolean;
+  filtersOpen: boolean;
+  filters: TagFilters;
   set: (partial: Partial<Omit<UiState, 'set' | 'select'>>) => void;
   select: (ids: Iterable<string>) => void;
 }
@@ -41,6 +45,10 @@ export const useUiStore = create<UiState>((set) => ({
   resizePreview: null,
   marquee: null,
   contextMenu: null,
+  tagPicker: null,
+  tagManagerOpen: false,
+  filtersOpen: false,
+  filters: {},
   set,
   select: (ids) => set({ selectedIds: new Set(ids) }),
 }));

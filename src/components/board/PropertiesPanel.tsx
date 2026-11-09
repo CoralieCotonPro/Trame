@@ -16,10 +16,12 @@ import {
   bringToFront,
   deleteSelection,
   duplicateSelection,
+  openTagPicker,
   patchSelection,
   sendToBack,
 } from '../../stores/actions';
 import { useBoardStore } from '../../stores/boardStore';
+import { useTagStore } from '../../stores/tagStore';
 import { useUiStore } from '../../stores/uiStore';
 import type { BoardElement, PostitElement, TextAlign, TextElement, TextLevel } from '../../types/board';
 import { IconButton } from '../toolbar/IconButton';
@@ -71,6 +73,21 @@ function PostitControls({ elements }: { elements: PostitElement[] }) {
           />
         ))}
       </div>
+      <Divider />
+      <button
+        type="button"
+        data-tag-trigger
+        aria-label="Modifier les tags"
+        onClick={(event) => {
+          const { left, bottom } = event.currentTarget.getBoundingClientRect();
+          const isOpen = useUiStore.getState().tagPicker !== null;
+          if (isOpen) useUiStore.getState().set({ tagPicker: null });
+          else openTagPicker(left, bottom + 8);
+        }}
+        className="h-8 rounded-md px-2 text-sm font-medium whitespace-nowrap hover:bg-paper"
+      >
+        + Tag
+      </button>
       <Divider />
       <div className="flex items-center gap-0.5" role="group" aria-label="Taille du post-it">
         {POSTIT_SIZES.map((size) => (
@@ -164,6 +181,10 @@ export function PropertiesPanel() {
   );
   const panelRef = useRef<HTMLDivElement>(null);
   const [panelSize, setPanelSize] = useState({ width: 0, height: 0 });
+
+  // Un badge peut changer la hauteur d'un post-it, donc la position du panneau.
+  useTagStore((state) => state.values);
+  useTagStore((state) => state.categories);
 
   const selected = [...selectedIds].flatMap((id) => allElements[id] ?? []);
   const bounds = boundsOf(selected.map(displayRect));

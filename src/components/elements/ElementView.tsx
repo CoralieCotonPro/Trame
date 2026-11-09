@@ -1,15 +1,22 @@
+import type { Context } from 'konva/lib/Context';
 import { memo } from 'react';
-import { Group, Rect, Text } from 'react-konva';
+import { Group, Rect, Shape, Text } from 'react-konva';
 import {
+  badgesTop,
   layoutPostit,
   displayRect,
+  BADGE_FONT,
+  BADGE_HEIGHT,
+  BADGE_PADDING_X,
+  BADGE_RADIUS,
+  type PlacedBadge,
   POSTIT_BODY_SIZE,
   POSTIT_PADDING,
   POSTIT_PLACEHOLDER,
-  POSTIT_TITLE_SIZE,
   TEXT_PLACEHOLDER,
 } from '../../lib/layout';
 import { FONT_FAMILY, INK, INK_MUTED, LINE_HEIGHT, postitFill, TEXT_LEVELS } from '../../lib/palette';
+import { useTagStore } from '../../stores/tagStore';
 import type { BoardElement, PostitElement, TextElement } from '../../types/board';
 
 interface Props<T extends BoardElement> {
@@ -17,11 +24,28 @@ interface Props<T extends BoardElement> {
   editing: boolean;
 }
 
+/** Une seule forme par post-it : bien moins coûteux qu'un rectangle et un texte par badge. */
+function drawBadges(context: Context, badges: PlacedBadge[]) {
+  const canvas = (context as unknown as { _context: CanvasRenderingContext2D })._context;
+  canvas.font = BADGE_FONT;
+  canvas.textBaseline = 'middle';
+  for (const badge of badges) {
+    canvas.fillStyle = badge.color;
+    canvas.beginPath();
+    canvas.roundRect(badge.x, badge.y, badge.width, BADGE_HEIGHT, BADGE_RADIUS);
+    canvas.fill();
+    canvas.fillStyle = badge.textColor;
+    canvas.fillText(badge.text, badge.x + BADGE_PADDING_X, badge.y + BADGE_HEIGHT / 2 + 0.5);
+  }
+}
+
 function PostitView({ element, editing }: Props<PostitElement>) {
-  const { innerWidth, titleHeight, bodyY } = layoutPostit(element);
-  const { title, body } = element.content;
+  // Reconstruit les badges quand un libellé ou une couleur change dans le catalogue.
+  useTagStore((state) => state.values);
+  useTagStore((state) => state.categories);
+  const { innerWidth, badges } = layoutPostit(element);
+  const { body } = element.content;
   const { width, height } = displayRect(element);
-  const isEmpty = !title && !body;
 
   return (
     <Group x={element.x} y={element.y}>
@@ -39,25 +63,10 @@ function PostitView({ element, editing }: Props<PostitElement>) {
         shadowForStrokeEnabled={false}
         perfectDrawEnabled={false}
       />
-      {!editing && title && (
+      {!editing && (
         <Text
           x={POSTIT_PADDING}
           y={POSTIT_PADDING}
-          width={innerWidth}
-          height={titleHeight}
-          text={title}
-          fontFamily={FONT_FAMILY}
-          fontSize={POSTIT_TITLE_SIZE}
-          fontStyle="bold"
-          lineHeight={LINE_HEIGHT}
-          fill={INK}
-          perfectDrawEnabled={false}
-        />
-      )}
-      {!editing && (body || isEmpty) && (
-        <Text
-          x={POSTIT_PADDING}
-          y={bodyY}
           width={innerWidth}
           text={body || POSTIT_PLACEHOLDER}
           fontFamily={FONT_FAMILY}
@@ -65,6 +74,14 @@ function PostitView({ element, editing }: Props<PostitElement>) {
           lineHeight={LINE_HEIGHT}
           fill={body ? INK : INK_MUTED}
           perfectDrawEnabled={false}
+        />
+      )}
+      {!editing && badges.length > 0 && (
+        <Shape
+          x={POSTIT_PADDING}
+          y={badgesTop(element)}
+          listening={false}
+          sceneFunc={(context) => drawBadges(context, badges)}
         />
       )}
     </Group>

@@ -5,6 +5,7 @@ import {
   copySelection,
   deleteSelection,
   duplicateSelection,
+  openTagPicker,
   patchSelection,
   sendToBack,
   startEditing,
@@ -14,7 +15,7 @@ import { useUiStore } from '../../stores/uiStore';
 import { ColorSwatch } from '../board/PropertiesPanel';
 
 const MENU_WIDTH = 220;
-const MENU_HEIGHT = 320;
+const MENU_HEIGHT = 360;
 
 function Item({ label, onClick, danger }: { label: string; onClick: () => void; danger?: boolean }) {
   return (
@@ -83,6 +84,7 @@ function ContextMenuContent({ x, y }: { x: number; y: number }) {
       )}
       <Item label="Dupliquer" onClick={duplicateSelection} />
       <Item label="Copier" onClick={copySelection} />
+      {allPostits && <Item label="Modifier les tags" onClick={() => openTagPicker(x, y)} />}
       {allPostits && <Item label="Changer la couleur" onClick={() => setShowColors(!showColors)} />}
       {allPostits && showColors && (
         <div className="grid grid-cols-4 gap-2 px-3 py-2">

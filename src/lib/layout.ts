@@ -1,10 +1,34 @@
 import Konva from 'konva';
-import type { BoardElement, PostitElement, Rect, TextElement } from '../types/board';
+import { useTagStore } from '../stores/tagStore';
+import type {
+  BoardElement,
+  Point,
+  PostitElement,
+  Rect,
+  TagCategory,
+  TagValue,
+  TextElement,
+} from '../types/board';
+import { containsPoint } from './geometry';
 import { FONT_FAMILY, LINE_HEIGHT, TEXT_LEVELS } from './palette';
+import {
+  flowBadges,
+  readableTextColor,
+  resolveTags,
+  sortCategories,
+  type FlowBox,
+  type ResolvedTag,
+} from './tags';
+
+export const BADGE_HEIGHT = 20;
+export const BADGE_RADIUS = 5;
+export const BADGE_FONT_SIZE = 12;
+export const BADGE_PADDING_X = 7;
+export const BADGE_FONT = `600 ${BADGE_FONT_SIZE}px ${FONT_FAMILY}`;
+const BADGE_GAP = 4;
+const BADGES_TOP_GAP = 10;
 
 export const POSTIT_PADDING = 16;
-export const POSTIT_TITLE_GAP = 6;
-export const POSTIT_TITLE_SIZE = 16;
 export const POSTIT_BODY_SIZE = 15;
 export const POSTIT_PLACEHOLDER = 'Double-cliquez pour écrire';
 export const TEXT_PLACEHOLDER = 'Texte vide';
@@ -21,33 +45,110 @@ function measureHeight(text: string, width: number, fontSize: number, fontStyle:
   return measurer.height();
 }
 
-export interface PostitLayout {
-  innerWidth: number;
-  titleHeight: number;
-  bodyY: number;
-  contentHeight: number;
+let badgeContext: CanvasRenderingContext2D | null = null;
+
+function badgeTextWidth(text: string): number {
+  badgeContext ??= Konva.Util.createCanvasElement().getContext('2d');
+  if (!badgeContext) return text.length * BADGE_FONT_SIZE * 0.6;
+  badgeContext.font = BADGE_FONT;
+  return badgeContext.measureText(text).width;
 }
 
-const postitLayouts = new WeakMap<PostitElement, PostitLayout>();
+/** Raccourcit visiblement un libellé trop long ; le libellé entier reste dans l'éditeur. */
+function fitBadgeLabel(label: string, maxTextWidth: number): string {
+  if (badgeTextWidth(label) <= maxTextWidth) return label;
+  let end = label.length;
+  while (end > 1 && badgeTextWidth(`${label.slice(0, end)}…`) > maxTextWidth) end -= 1;
+  return `${label.slice(0, end)}…`;
+}
+
+export interface PlacedBadge extends ResolvedTag {
+  text: string;
+  textColor: string;
+  x: number;
+  y: number;
+  width: number;
+}
+
+export interface PostitLayout {
+  innerWidth: number;
+  contentHeight: number;
+  badges: PlacedBadge[];
+  badgesHeight: number;
+}
+
+function layoutBadges(element: PostitElement, innerWidth: number) {
+  const { categories, values } = useTagStore.getState();
+  const tags = resolveTags(element.tags, sortCategories(categories), values);
+  const maxTextWidth = Math.max(1, innerWidth - BADGE_PADDING_X * 2);
+  const measured = tags.map((tag) => {
+    const text = fitBadgeLabel(tag.label, maxTextWidth);
+    return { tag, text, width: badgeTextWidth(text) + BADGE_PADDING_X * 2 };
+  });
+  const { positions, totalHeight } = flowBadges(
+    measured.map((item) => item.width),
+    innerWidth,
+    { gap: BADGE_GAP, height: BADGE_HEIGHT },
+  );
+  const badges = measured.map(({ tag, text, width }, index) => ({
+    ...tag,
+    text,
+    width,
+    textColor: readableTextColor(tag.color),
+    ...(positions[index] as FlowBox),
+  }));
+  return { badges, badgesHeight: totalHeight };
+}
+
+interface CachedLayout {
+  layout: PostitLayout;
+  categories: TagCategory[];
+  values: TagValue[];
+}
+
+const postitLayouts = new WeakMap<PostitElement, CachedLayout>();
 
 export function layoutPostit(element: PostitElement): PostitLayout {
+  const { categories, values } = useTagStore.getState();
   const cached = postitLayouts.get(element);
-  if (cached) return cached;
+  if (cached && cached.categories === categories && cached.values === values) return cached.layout;
 
   const innerWidth = Math.max(1, element.width - POSTIT_PADDING * 2);
-  const { title, body } = element.content;
-  const titleHeight = title ? measureHeight(title, innerWidth, POSTIT_TITLE_SIZE, 'bold') : 0;
-  const bodyY = POSTIT_PADDING + (title ? titleHeight + POSTIT_TITLE_GAP : 0);
-  const bodyText = body || (title ? '' : POSTIT_PLACEHOLDER);
+  const bodyText = element.content.body || POSTIT_PLACEHOLDER;
   const bodyHeight = measureHeight(bodyText, innerWidth, POSTIT_BODY_SIZE, 'normal');
+  const { badges, badgesHeight } = layoutBadges(element, innerWidth);
   const layout = {
     innerWidth,
-    titleHeight,
-    bodyY,
-    contentHeight: bodyY + bodyHeight + POSTIT_PADDING,
+    contentHeight:
+      POSTIT_PADDING + bodyHeight + (badgesHeight > 0 ? BADGES_TOP_GAP + badgesHeight : 0) + POSTIT_PADDING,
+    badges,
+    badgesHeight,
   };
-  postitLayouts.set(element, layout);
+  postitLayouts.set(element, { layout, categories, values });
   return layout;
+}
+
+/** Ordonnée des badges dans le post-it : ils restent collés au bas. */
+export function badgesTop(element: PostitElement): number {
+  return displayRect(element).height - POSTIT_PADDING - layoutPostit(element).badgesHeight;
+}
+
+/** Badge situé sous un point du tableau. */
+export function badgeAt(element: PostitElement, point: Point): PlacedBadge | null {
+  const top = element.y + badgesTop(element);
+  return (
+    layoutPostit(element).badges.find((badge) =>
+      containsPoint(
+        {
+          x: element.x + POSTIT_PADDING + badge.x,
+          y: top + badge.y,
+          width: badge.width,
+          height: BADGE_HEIGHT,
+        },
+        point,
+      ),
+    ) ?? null
+  );
 }
 
 const textHeights = new WeakMap<TextElement, number>();

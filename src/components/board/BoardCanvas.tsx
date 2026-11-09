@@ -5,7 +5,9 @@ import { useElementSize } from '../../hooks/useElementSize';
 import { visibleBoardRect } from '../../lib/camera';
 import { handlePosition, handlesFor, rectsIntersect, sortByZ } from '../../lib/geometry';
 import { displayRect } from '../../lib/layout';
+import { isShown } from '../../lib/tags';
 import { useBoardStore } from '../../stores/boardStore';
+import { useTagStore } from '../../stores/tagStore';
 import { useUiStore } from '../../stores/uiStore';
 import type { BoardElement, Camera } from '../../types/board';
 import { ElementView } from '../elements/ElementView';
@@ -107,7 +109,16 @@ export function BoardCanvas() {
     useUiStore.getState().set({ viewport: size });
   }, [size]);
 
-  const sorted = useMemo(() => sortByZ(Object.values(elements)), [elements]);
+  const filters = useUiStore((state) => state.filters);
+  // Un changement de catalogue peut modifier la hauteur des post-it.
+  useTagStore((state) => state.values);
+  useTagStore((state) => state.categories);
+
+  const sorted = useMemo(
+    () =>
+      sortByZ(Object.values(elements).filter((element) => isShown(element, filters, selectedIds))),
+    [elements, filters, selectedIds],
+  );
 
   const view = visibleBoardRect(camera, viewport);
   const margin = CULLING_MARGIN / camera.zoom;

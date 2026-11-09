@@ -25,6 +25,11 @@ function isTyping(target: EventTarget | null): boolean {
   );
 }
 
+/** Dans une fenêtre de tags, Suppr ou Échap ne doivent pas agir sur le tableau. */
+function isInsidePopup(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && target.closest('[data-shortcuts-off]') !== null;
+}
+
 function handleCommand(key: string, shift: boolean): boolean {
   const actions: Record<string, () => void> = {
     z: shift ? redo : undo,
@@ -95,7 +100,7 @@ function handleSimpleKey(key: string, shift: boolean): boolean {
 export function useKeyboardShortcuts() {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (isTyping(event.target) || ui().editingId) return;
+      if (isTyping(event.target) || ui().editingId || isInsidePopup(event.target)) return;
 
       if (event.code === 'Space') {
         if (event.target instanceof HTMLButtonElement) return;

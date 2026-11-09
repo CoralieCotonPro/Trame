@@ -25,11 +25,11 @@ test('crée un post-it et modifie son texte au double-clic', async ({ page }) =>
   await page.mouse.dblclick(point.x, point.y);
   const field = page.getByRole('textbox', { name: 'Texte du post-it' });
   await expect(field).toHaveValue('Améliorer la compréhension');
+  await expect(page.getByRole('textbox', { name: 'Titre du post-it' })).toHaveCount(0);
   await field.fill('Texte modifié');
-  await page.getByRole('textbox', { name: 'Titre du post-it' }).fill('Mon titre');
   await page.keyboard.press('Escape');
 
-  await expect(items(page).first()).toHaveText('Post-it : Mon titre — Texte modifié');
+  await expect(items(page).first()).toHaveText('Post-it : Texte modifié');
 });
 
 test('le texte long agrandit le post-it au lieu d’être coupé', async ({ page }) => {

@@ -42,6 +42,15 @@ Compromis de Konva : le canvas ne sait pas éditer du texte. Pendant l'édition,
 - Le canvas étant invisible au clavier et aux lecteurs d'écran, une liste HTML masquée (`ElementsA11yList`) rend chaque élément atteignable. Les tests navigateur s'appuient aussi dessus.
 - Chaque action produit une opération et son inverse, ce qui sert à la fois à l'annulation et à la sauvegarde. L'annulation ne concerne que ses propres actions.
 
+## Tags
+
+- Un post-it ne stocke que `catégorie → identifiant de valeur`. Libellés et couleurs vivent uniquement dans le catalogue (`stores/tagStore.ts`) : les modifier met à jour tous les post-it.
+- La règle « une valeur par catégorie » tient à cette structure. Pour autoriser plusieurs valeurs, il faudra passer à une liste d'identifiants dans `types/board.ts`, `boardStore` et `lib/tags.ts`.
+- Filtres : ET entre catégories, OU entre valeurs. Les post-it exclus restent en mémoire, à leur place, mais ne sont ni dessinés ni atteignables, ce qui les protège d'un « tout sélectionner + supprimer ». Les blocs de texte restent visibles pour garder la structure du tableau. Les filtres sont propres à chaque personne.
+- Un post-it sélectionné reste affiché même s'il ne correspond plus aux filtres : changer ses tags ne le fait pas disparaître. Il est masqué une fois désélectionné.
+- Un post-it créé sous un filtre reprend les valeurs filtrées, sinon il disparaîtrait aussitôt.
+- La suppression d'une valeur ou d'une catégorie ne s'annule pas avec Ctrl/Cmd+Z : elle demande confirmation si des post-it l'utilisent.
+
 ## Modèle de données (étape 4)
 
 Tables demandées : `boards`, `elements`, `tag_categories`, `tag_values`, `element_tags`, `board_permissions`, `board_share_links`. Adaptations :

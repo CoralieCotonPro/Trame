@@ -9,8 +9,14 @@ import {
   resizeRect,
   type Handle,
 } from '../lib/geometry';
-import { contentHeight, displayRect, MIN_POSTIT, MIN_TEXT_WIDTH } from '../lib/layout';
-import { addPostit, moveSelection, startEditing } from '../stores/actions';
+import { badgeAt, contentHeight, displayRect, MIN_POSTIT, MIN_TEXT_WIDTH } from '../lib/layout';
+import {
+  addPostit,
+  moveSelection,
+  openTagPicker,
+  startEditing,
+  visibleElements,
+} from '../stores/actions';
 import { useBoardStore } from '../stores/boardStore';
 import { useUiStore } from '../stores/uiStore';
 import type { BoardElement, Point, Rect } from '../types/board';
@@ -29,12 +35,19 @@ const CURSORS: Record<Handle, string> = {
 
 type Gesture =
   | { kind: 'pan'; start: Point; last: Point; moved: boolean }
-  | { kind: 'drag'; start: Point; origin: Point; moved: boolean; collapseTo: string | null }
+  | {
+      kind: 'drag';
+      start: Point;
+      origin: Point;
+      moved: boolean;
+      collapseTo: string | null;
+      badge: { elementId: string; categoryId: string } | null;
+    }
   | { kind: 'resize'; element: BoardElement; rect: Rect; handle: Handle; start: Point }
   | { kind: 'marquee'; start: Point; base: Set<string>; moved: boolean; additive: boolean };
 
 const ui = () => useUiStore.getState();
-const elements = () => Object.values(useBoardStore.getState().elements);
+const elements = visibleElements;
 
 function singleSelected(): BoardElement | null {
   const { selectedIds, editingId } = ui();
@@ -115,7 +128,15 @@ export function useBoardPointer(containerRef: RefObject<HTMLDivElement | null>) 
           ui().select([hit.id]);
         }
         const collapseTo = !event.shiftKey && selectedIds.has(hit.id) ? hit.id : null;
-        gesture = { kind: 'drag', start: screen, origin: point, moved: false, collapseTo };
+        const badge = !event.shiftKey && hit.type === 'postit' ? badgeAt(hit, point) : null;
+        gesture = {
+          kind: 'drag',
+          start: screen,
+          origin: point,
+          moved: false,
+          collapseTo,
+          badge: badge && { elementId: hit.id, categoryId: badge.categoryId },
+        };
         return;
       }
 
@@ -138,7 +159,11 @@ export function useBoardPointer(containerRef: RefObject<HTMLDivElement | null>) 
       const hit = tool === 'select' && !spaceHeld ? handleAt(point) : null;
       if (hit) container.style.cursor = CURSORS[hit.handle];
       else if (tool === 'hand' || spaceHeld) container.style.cursor = 'grab';
-      else container.style.cursor = elementAt(point) ? 'move' : 'default';
+      else {
+        const element = elementAt(point);
+        const overBadge = element?.type === 'postit' && badgeAt(element, point);
+        container.style.cursor = overBadge ? 'pointer' : element ? 'move' : 'default';
+      }
     };
 
     const onPointerMove = (event: PointerEvent) => {
@@ -203,7 +228,10 @@ export function useBoardPointer(containerRef: RefObject<HTMLDivElement | null>) 
           const delta = ui().dragDelta;
           ui().set({ dragDelta: null });
           if (delta && (delta.x !== 0 || delta.y !== 0)) moveSelection(delta);
-          else if (!finished.moved && finished.collapseTo) ui().select([finished.collapseTo]);
+          else if (!finished.moved && finished.badge) {
+            ui().select([finished.badge.elementId]);
+            openTagPicker(event.clientX, event.clientY, finished.badge.categoryId);
+          } else if (!finished.moved && finished.collapseTo) ui().select([finished.collapseTo]);
           break;
         }
         case 'resize': {

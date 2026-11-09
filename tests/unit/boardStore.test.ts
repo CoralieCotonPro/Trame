@@ -13,7 +13,7 @@ test('une modification ne touche que les champs demandés', () => {
   store().patchElements({ [postit.id]: { content: { body: 'Bonjour' } } });
 
   const updated = store().elements[postit.id];
-  expect(updated?.content).toEqual({ title: '', body: 'Bonjour' });
+  expect(updated?.content).toEqual({ body: 'Bonjour' });
   expect(updated?.x).toBe(10);
 });
 
