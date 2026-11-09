@@ -17,6 +17,7 @@ import {
   startEditing,
   visibleElements,
 } from '../stores/actions';
+import { endDrag, sendCursor, sendDrag } from '../services/collaboration';
 import { useBoardStore } from '../stores/boardStore';
 import { useUiStore } from '../stores/uiStore';
 import type { BoardElement, Point, Rect } from '../types/board';
@@ -58,7 +59,7 @@ function singleSelected(): BoardElement | null {
 
 function handleAt(point: Point): { element: BoardElement; handle: Handle } | null {
   const element = singleSelected();
-  if (!element) return null;
+  if (!element || ui().role === 'viewer') return null;
   const rect = displayRect(element);
   const radius = HANDLE_HIT_RADIUS / ui().camera.zoom;
   for (const handle of handlesFor(element.type)) {
@@ -127,6 +128,7 @@ export function useBoardPointer(containerRef: RefObject<HTMLDivElement | null>) 
         } else if (!selectedIds.has(hit.id)) {
           ui().select([hit.id]);
         }
+        if (ui().role === 'viewer') return;
         const collapseTo = !event.shiftKey && selectedIds.has(hit.id) ? hit.id : null;
         const badge = !event.shiftKey && hit.type === 'postit' ? badgeAt(hit, point) : null;
         gesture = {
@@ -170,6 +172,7 @@ export function useBoardPointer(containerRef: RefObject<HTMLDivElement | null>) 
       const screen = localPoint(event);
       const point = boardPoint(event);
       ui().set({ cursor: point });
+      sendCursor(point);
 
       if (!gesture) {
         updateHoverCursor(point);
@@ -197,7 +200,9 @@ export function useBoardPointer(containerRef: RefObject<HTMLDivElement | null>) 
           const moved = Math.hypot(screen.x - gesture.start.x, screen.y - gesture.start.y);
           if (!gesture.moved && moved < DRAG_THRESHOLD) return;
           gesture.moved = true;
-          ui().set({ dragDelta: { x: point.x - gesture.origin.x, y: point.y - gesture.origin.y } });
+          const dragDelta = { x: point.x - gesture.origin.x, y: point.y - gesture.origin.y };
+          ui().set({ dragDelta });
+          sendDrag([...ui().selectedIds], dragDelta);
           break;
         }
         case 'resize': {
@@ -226,6 +231,7 @@ export function useBoardPointer(containerRef: RefObject<HTMLDivElement | null>) 
           break;
         case 'drag': {
           const delta = ui().dragDelta;
+          endDrag();
           ui().set({ dragDelta: null });
           if (delta && (delta.x !== 0 || delta.y !== 0)) moveSelection(delta);
           else if (!finished.moved && finished.badge) {
@@ -258,11 +264,13 @@ export function useBoardPointer(containerRef: RefObject<HTMLDivElement | null>) 
     };
 
     const onPointerLeave = () => {
-      if (!gesture) ui().set({ cursor: null });
+      if (gesture) return;
+      ui().set({ cursor: null });
+      sendCursor(null);
     };
 
     const onDoubleClick = (event: MouseEvent) => {
-      if (ui().tool !== 'select' || ui().spaceHeld) return;
+      if (ui().tool !== 'select' || ui().spaceHeld || ui().role === 'viewer') return;
       const point = boardPoint(event);
       const hit = elementAt(point);
       if (hit) startEditing(hit.id);
@@ -271,6 +279,7 @@ export function useBoardPointer(containerRef: RefObject<HTMLDivElement | null>) 
 
     const onContextMenu = (event: MouseEvent) => {
       event.preventDefault();
+      if (ui().role === 'viewer') return;
       const hit = elementAt(boardPoint(event));
       if (!hit) return;
       if (!ui().selectedIds.has(hit.id)) ui().select([hit.id]);

@@ -7,6 +7,8 @@ import { BoardCanvas } from '../board/BoardCanvas';
 import { ElementEditor } from '../board/ElementEditor';
 import { ElementsA11yList } from '../board/ElementsA11yList';
 import { PropertiesPanel } from '../board/PropertiesPanel';
+import { RemoteOverlay } from '../collaboration/RemoteOverlay';
+import { ShareDialog } from '../collaboration/ShareDialog';
 import { ContextMenu } from '../dialogs/ContextMenu';
 import { FiltersPanel } from '../tags/FiltersPanel';
 import { TagManager } from '../tags/TagManager';
@@ -29,7 +31,7 @@ function Message({ text }: { text: string }) {
   );
 }
 
-function LoadedBoard() {
+function LoadedBoard({ boardId }: { boardId: string }) {
   useKeyboardShortcuts();
   const hasViewport = useUiStore((state) => state.viewport.width > 0);
   const revealed = useRef(false);
@@ -45,6 +47,7 @@ function LoadedBoard() {
   return (
     <main className="relative h-full w-full overflow-hidden">
       <BoardCanvas />
+      <RemoteOverlay />
       <ElementEditor />
       <TopBar />
       <Toolbar />
@@ -54,18 +57,28 @@ function LoadedBoard() {
       <FiltersPanel />
       <TagPicker />
       <TagManager />
+      <ShareDialog boardId={boardId} />
       <SyncNotice />
       <ElementsA11yList />
     </main>
   );
 }
 
-export function BoardPage({ boardId, userId }: { boardId: string; userId: string }) {
+export function BoardPage({
+  boardId,
+  user,
+}: {
+  boardId: string;
+  user: { id: string; name: string };
+}) {
   const [loaded, setLoaded] = useState<LoadState>(null);
+  const accessLost = useUiStore((state) => state.accessLost);
+  const { id: userId, name: userName } = user;
 
   useEffect(() => {
+    useUiStore.getState().set({ accessLost: false });
     let cancelled = false;
-    openBoard(boardId, userId)
+    openBoard(boardId, { id: userId, name: userName })
       .then((status) => {
         if (!cancelled) setLoaded({ boardId, status });
       })
@@ -76,8 +89,9 @@ export function BoardPage({ boardId, userId }: { boardId: string; userId: string
       cancelled = true;
       closeBoard();
     };
-  }, [boardId, userId]);
+  }, [boardId, userId, userName]);
 
+  if (accessLost) return <Message text="Votre accès à ce tableau a été retiré." />;
   if (loaded?.boardId !== boardId) return <Message text="Chargement du tableau…" />;
   if (loaded.status === 'not-found') {
     return <Message text="Ce tableau n'existe pas, ou vous n'y avez pas accès." />;
@@ -85,5 +99,5 @@ export function BoardPage({ boardId, userId }: { boardId: string; userId: string
   if (loaded.status === 'error') {
     return <Message text="Impossible de charger ce tableau. Vérifiez votre connexion." />;
   }
-  return <LoadedBoard />;
+  return <LoadedBoard boardId={boardId} />;
 }

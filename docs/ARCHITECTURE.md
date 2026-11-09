@@ -97,8 +97,10 @@ Deux chemins distincts, car ils n'ont pas les mêmes exigences :
 
 Deux canaux privés par tableau, contrôlés par RLS sur `realtime.messages` :
 
-- `board:<id>` : changements émis par la base et glissements. Émission réservée aux éditeurs.
-- `board:<id>:presence` : participants et curseurs. Ouvert à tous les membres, lecture seule comprise.
+- `board:<id>:<clé>` : changements émis par la base et glissements. Émission réservée aux éditeurs.
+- `board:<id>:<clé>:presence` : participants et curseurs. Ouvert à tous les membres, lecture seule comprise.
+
+**Révocation.** Supabase ne revérifie pas les droits d'une connexion déjà ouverte (constaté par un test). La clé du canal est donc renouvelée à chaque changement de droits : l'ancien canal devient muet, et les membres restants se reconnectent automatiquement au nouveau.
 
 Pendant un glissement, la position est diffusée quelques fois par seconde et interpolée chez les autres. La position finale est écrite en base au relâchement.
 
@@ -145,9 +147,9 @@ Vérifiées le 9 novembre 2026 sur la documentation Supabase, et susceptibles de
 
 | Risque | Impact | Parade | Vérification |
 | --- | --- | --- | --- |
-| Curseurs trop coûteux : un message envoyé est multiplié par le nombre de destinataires | Dépassement des 100 messages/s à 10 participants | Curseurs dans Broadcast et non Presence, envoi seulement en mouvement, fréquence ajustée au nombre de participants, désactivation possible | Mesure à l'étape 5 |
-| Sessions anonymes avec canaux privés : la documentation ne le confirme pas explicitement | Invités bloqués | Les anonymes ont le rôle `authenticated`, donc cela devrait fonctionner | Premier test de l'étape 5 |
-| Révocation pendant une connexion WebSocket ouverte | Un invité révoqué continue de recevoir un temps | Les écritures sont refusées immédiatement ; expulsion du canal à prévoir | Test de l'étape 5 |
+| Curseurs trop coûteux : un message envoyé est multiplié par le nombre de destinataires | Dépassement des 100 messages/s à 10 participants | Curseurs dans Broadcast et non Presence, envoi seulement en mouvement, fréquence réduite selon le nombre de participants pour rester sous 80 messages/s dans le pire cas | Mesuré à 10 participants (test automatisé) |
+| Sessions anonymes avec canaux privés | Invités bloqués | Les anonymes ont le rôle `authenticated` | Vérifié (test automatisé) |
+| Révocation pendant une connexion ouverte | Un invité révoqué continuerait de recevoir | Renouvellement de la clé du canal | Vérifié (test automatisé) |
 | Mise en pause du projet gratuit | Tableau inaccessible après 7 jours d'inactivité | Réactivation dans le tableau de bord ; les données sont conservées | Documentation à l'étape 6 |
 | Abus de création de sessions anonymes | Base encombrée | Limite par IP, Turnstile recommandé, purge des comptes anonymes inactifs | Étape 5 |
 | Performances Konva avec 400 éléments | Saccades | Masquage hors écran, calque de glissement, mesure du texte en cache | Test de charge à l'étape 6 |

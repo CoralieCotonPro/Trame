@@ -2,7 +2,7 @@
 
 Tableau blanc collaboratif et libre pour construire collectivement la roadmap d'Envergo.
 
-> **État actuel : étape 4 sur 6.** Les tableaux sont enregistrés dans Supabase, avec un compte propriétaire. Le travail à plusieurs et le partage arrivent à l'étape 5.
+> **État actuel : étape 5 sur 6.** Le travail à plusieurs en temps réel et le partage par lien fonctionnent, en local. La mise en ligne arrive à l'étape 6.
 
 | Étape | Contenu | État |
 | --- | --- | --- |
@@ -10,7 +10,7 @@ Tableau blanc collaboratif et libre pour construire collectivement la roadmap d'
 | 2 | Tableau local : post-it, texte, déplacement, zoom | Validée |
 | 3 | Tags, couleurs et filtres | Validée |
 | 4 | Supabase et sauvegarde persistante | Validée |
-| 5 | Temps réel, participants, partage sécurisé | À faire |
+| 5 | Temps réel, participants, partage sécurisé | Validée |
 | 6 | Exports, tests complémentaires, optimisations, Netlify | À faire |
 
 Les choix techniques sont expliqués dans [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).

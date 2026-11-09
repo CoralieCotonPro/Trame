@@ -27,6 +27,9 @@ interface UiState {
   tagManagerOpen: boolean;
   filtersOpen: boolean;
   filters: TagFilters;
+  role: 'owner' | 'editor' | 'viewer';
+  accessLost: boolean;
+  shareOpen: boolean;
   set: (partial: Partial<Omit<UiState, 'set' | 'select'>>) => void;
   select: (ids: Iterable<string>) => void;
 }
@@ -49,6 +52,9 @@ export const useUiStore = create<UiState>((set) => ({
   tagManagerOpen: false,
   filtersOpen: false,
   filters: {},
+  role: 'owner',
+  accessLost: false,
+  shareOpen: false,
   set,
   select: (ids) => set({ selectedIds: new Set(ids) }),
 }));

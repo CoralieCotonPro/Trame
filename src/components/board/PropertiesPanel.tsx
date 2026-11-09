@@ -191,7 +191,8 @@ export function PropertiesPanel() {
   const postits = selected.filter(isPostit);
   const texts = selected.filter(isText);
   const kind = postits.length === selected.length ? 'postit' : texts.length === selected.length ? 'text' : 'mixed';
-  const visible = bounds !== null && !busy;
+  const readOnly = useUiStore((state) => state.role === 'viewer');
+  const visible = bounds !== null && !busy && !readOnly;
 
   useLayoutEffect(() => {
     if (!panelRef.current) return;

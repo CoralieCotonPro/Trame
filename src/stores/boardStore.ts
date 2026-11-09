@@ -26,12 +26,46 @@ interface BoardState {
   redo: () => string[];
 }
 
+const SCALAR_KEYS = ['x', 'y', 'width', 'height', 'zIndex'] as const;
+const RECORD_KEYS = ['content', 'style', 'tags'] as const;
+
+/**
+ * Applique seulement ce que cette action a changé : annuler son déplacement
+ * ne doit pas effacer le texte qu'un collègue a modifié entre-temps.
+ */
+function mergeChange(current: BoardElement, from: BoardElement, to: BoardElement): BoardElement {
+  const next = { ...current } as unknown as Record<string, unknown>;
+  const source = from as unknown as Record<string, unknown>;
+  const target = to as unknown as Record<string, unknown>;
+
+  for (const key of SCALAR_KEYS) {
+    if (source[key] !== target[key]) next[key] = target[key];
+  }
+  for (const key of RECORD_KEYS) {
+    const before = (source[key] ?? {}) as Record<string, string>;
+    const after = (target[key] ?? {}) as Record<string, string>;
+    if (!(key in next)) continue;
+    const merged = { ...(next[key] as Record<string, string>) };
+    for (const field of new Set([...Object.keys(before), ...Object.keys(after)])) {
+      if (before[field] === after[field]) continue;
+      const value = after[field];
+      if (value === undefined) delete merged[field];
+      else merged[field] = value;
+    }
+    next[key] = merged;
+  }
+  return next as unknown as BoardElement;
+}
+
 function withChanges(elements: Elements, changes: ElementChange[], side: 'before' | 'after') {
   const next = { ...elements };
   for (const change of changes) {
-    const value = change[side];
-    if (value) next[change.id] = value;
-    else delete next[change.id];
+    const target = change[side];
+    const source = change[side === 'after' ? 'before' : 'after'];
+    const current = next[change.id];
+    if (!target) delete next[change.id];
+    else if (!current || !source || current === source) next[change.id] = target;
+    else next[change.id] = mergeChange(current, source, target);
   }
   return next;
 }

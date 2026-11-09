@@ -30,6 +30,8 @@ Les tests navigateur (`npm run test:e2e`) utilisent cette base : elle doit être
 
 La procédure complète (création du projet, domaines autorisés, déploiement) sera ajoutée à l'étape 6.
 
+Trois réglages seront indispensables sur le projet en ligne : autoriser les connexions anonymes (invités), désactiver l'accès public à Realtime (« Allow public access »), et activer une protection Turnstile pour limiter les abus de sessions anonymes.
+
 ## Sécurité
 
 - Seules l'URL du projet et la clé publique vont dans le navigateur. La clé secrète (`service_role` / `secret`) ne doit jamais figurer dans une variable `VITE_`.

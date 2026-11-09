@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { navigate } from '../../hooks/useRoute';
 import { useBoardStore } from '../../stores/boardStore';
 import { useUiStore } from '../../stores/uiStore';
+import { Participants } from '../collaboration/Participants';
 import { IconButton } from './IconButton';
 import { SaveStatus } from './SaveStatus';
 
@@ -33,6 +34,7 @@ function MainMenu() {
   const rootRef = useRef<HTMLDivElement>(null);
   const gridVisible = useUiStore((state) => state.gridVisible);
   const doubleClickCreates = useUiStore((state) => state.doubleClickCreates);
+  const role = useUiStore((state) => state.role);
   const setUi = useUiStore((state) => state.set);
 
   useEffect(() => {
@@ -65,17 +67,21 @@ function MainMenu() {
             checked={doubleClickCreates}
             onChange={(checked) => setUi({ doubleClickCreates: checked })}
           />
-          <div className="mx-2 my-1 h-px bg-line" />
-          <button
-            type="button"
-            onClick={() => {
-              setOpen(false);
-              setUi({ tagManagerOpen: true });
-            }}
-            className="block w-full rounded-md px-2 py-2 text-left text-sm hover:bg-paper"
-          >
-            Gérer les tags
-          </button>
+          {role !== 'viewer' && (
+            <>
+              <div className="mx-2 my-1 h-px bg-line" />
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  setUi({ tagManagerOpen: true });
+                }}
+                className="block w-full rounded-md px-2 py-2 text-left text-sm hover:bg-paper"
+              >
+                Gérer les tags
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -85,6 +91,8 @@ function MainMenu() {
 export function TopBar() {
   const name = useBoardStore((state) => state.name);
   const rename = useBoardStore((state) => state.rename);
+  const role = useUiStore((state) => state.role);
+  const setUi = useUiStore((state) => state.set);
 
   return (
     <header className="pointer-events-none absolute inset-x-4 top-4 z-30 flex items-start justify-between gap-4">
@@ -98,13 +106,28 @@ export function TopBar() {
         <input
           value={name}
           maxLength={120}
+          readOnly={role === 'viewer'}
           onChange={(event) => rename(event.target.value)}
           aria-label="Nom du tableau"
           className="h-8 w-52 min-w-0 rounded-md bg-transparent px-1 font-semibold"
         />
-        <SaveStatus />
+        {role === 'viewer' ? (
+          <span className="text-sm whitespace-nowrap text-ink-soft">Lecture seule</span>
+        ) : (
+          <SaveStatus />
+        )}
       </div>
-      <div className="pointer-events-auto rounded-panel border border-line bg-surface p-1 shadow-panel">
+      <div className="pointer-events-auto flex items-center gap-2 rounded-panel border border-line bg-surface p-1 pl-2 shadow-panel">
+        <Participants />
+        {role === 'owner' && (
+          <button
+            type="button"
+            onClick={() => setUi({ shareOpen: true })}
+            className="h-10 rounded-lg bg-accent px-3 text-sm font-medium text-white"
+          >
+            Partager
+          </button>
+        )}
         <MainMenu />
       </div>
     </header>

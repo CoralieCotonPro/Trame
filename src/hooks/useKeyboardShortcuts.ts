@@ -30,6 +30,12 @@ function isInsidePopup(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && target.closest('[data-shortcuts-off]') !== null;
 }
 
+function modifiesBoard(event: KeyboardEvent): boolean {
+  const key = event.key.toLowerCase();
+  if (event.ctrlKey || event.metaKey) return ['z', 'y', 'v', 'd'].includes(key);
+  return ['n', 't', 'delete', 'backspace', 'enter'].includes(key) || key.startsWith('arrow');
+}
+
 function handleCommand(key: string, shift: boolean): boolean {
   const actions: Record<string, () => void> = {
     z: shift ? redo : undo,
@@ -111,6 +117,8 @@ export function useKeyboardShortcuts() {
 
       // Entrée sur un bouton doit activer ce bouton, pas éditer la sélection.
       if (event.key === 'Enter' && event.target instanceof HTMLButtonElement) return;
+
+      if (ui().role === 'viewer' && modifiesBoard(event)) return;
 
       const handled =
         event.ctrlKey || event.metaKey

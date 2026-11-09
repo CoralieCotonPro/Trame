@@ -7,6 +7,7 @@ import { handlePosition, handlesFor, rectsIntersect, sortByZ } from '../../lib/g
 import { displayRect } from '../../lib/layout';
 import { isShown } from '../../lib/tags';
 import { useBoardStore } from '../../stores/boardStore';
+import { usePresenceStore } from '../../stores/presenceStore';
 import { useTagStore } from '../../stores/tagStore';
 import { useUiStore } from '../../stores/uiStore';
 import type { BoardElement, Camera } from '../../types/board';
@@ -110,6 +111,7 @@ export function BoardCanvas() {
   }, [size]);
 
   const filters = useUiStore((state) => state.filters);
+  const remoteDrags = usePresenceStore((state) => state.drags);
   // Un changement de catalogue peut modifier la hauteur des post-it.
   useTagStore((state) => state.values);
   useTagStore((state) => state.categories);
@@ -133,7 +135,10 @@ export function BoardCanvas() {
   // Les éléments en mouvement ont leur propre calque : le reste n'est pas redessiné.
   const isMoving = (element: BoardElement) =>
     (isDragging && selectedIds.has(element.id)) || resizePreview?.id === element.id;
-  const stationary = visible.filter((element) => !isMoving(element));
+  const movedByOthers = new Set(Object.values(remoteDrags).flatMap((drag) => drag.ids));
+  const stationary = visible.filter(
+    (element) => !isMoving(element) && !movedByOthers.has(element.id),
+  );
   const moving = sorted.filter(isMoving);
 
   const previewed = (element: BoardElement): BoardElement =>
@@ -183,6 +188,15 @@ export function BoardCanvas() {
                 <ElementView key={element.id} element={previewed(element)} editing={false} />
               ))}
             </Group>
+            {Object.entries(remoteDrags).map(([id, drag]) => (
+              <Group key={id} x={drag.offset.x} y={drag.offset.y}>
+                {sorted
+                  .filter((element) => drag.ids.includes(element.id) && !isMoving(element))
+                  .map((element) => (
+                    <ElementView key={element.id} element={element} editing={false} />
+                  ))}
+              </Group>
+            ))}
           </Layer>
           <SelectionOverlay elements={elements} />
         </Stage>

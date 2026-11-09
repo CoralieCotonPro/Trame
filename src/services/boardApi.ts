@@ -8,9 +8,12 @@ export interface BoardSummary {
   id: string;
   name: string;
   updated_at: string;
+  owner_id: string;
 }
 
-interface ElementRow {
+export type BoardRole = 'owner' | 'editor' | 'viewer';
+
+export interface ElementRow {
   id: string;
   type: BoardElement['type'];
   x: number;
@@ -20,6 +23,7 @@ interface ElementRow {
   z_index: number;
   content: Record<string, string>;
   style: Record<string, string>;
+  revision: number;
   content_revision: number;
   created_by: string | null;
   created_at: string;
@@ -43,16 +47,67 @@ function isTransient(status: number): boolean {
 export async function listBoards(): Promise<BoardSummary[]> {
   const { data, error } = await supabase
     .from('boards')
-    .select('id, name, updated_at')
+    .select('id, name, updated_at, owner_id')
     .order('updated_at', { ascending: false });
   if (error) throw new Error(error.message);
   return data;
 }
 
-export async function applyOps(boardId: string, ops: Op[]): Promise<OpResult[]> {
+export async function deleteBoard(boardId: string) {
+  const { error } = await supabase.from('boards').delete().eq('id', boardId);
+  if (error) throw new Error(error.message);
+}
+
+/** `null` si la personne n'a pas (ou plus) accès à ce tableau. */
+export async function loadRole(boardId: string, userId: string): Promise<BoardRole | null> {
+  const { data, error, status } = await supabase
+    .from('board_permissions')
+    .select('role')
+    .eq('board_id', boardId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (error) throw new NetworkOrServerError(error.message, isTransient(status));
+  return (data?.role as BoardRole | undefined) ?? null;
+}
+
+/** Clé du canal temps réel, renouvelée à chaque changement de droits. */
+export async function loadRealtimeKey(boardId: string): Promise<string | null> {
+  const { data, error, status } = await supabase
+    .from('boards')
+    .select('realtime_key')
+    .eq('id', boardId)
+    .maybeSingle();
+  if (error) throw new NetworkOrServerError(error.message, isTransient(status));
+  return (data?.realtime_key as string | undefined) ?? null;
+}
+
+export function elementFromRow(row: ElementRow, tags: Record<string, string>): BoardElement {
+  return {
+    id: row.id,
+    type: row.type,
+    x: row.x,
+    y: row.y,
+    width: row.width,
+    height: row.height,
+    zIndex: row.z_index,
+    content: row.content,
+    style: row.style,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    authorId: row.created_by,
+    ...(row.type === 'postit' ? { tags } : {}),
+  } as BoardElement;
+}
+
+export async function applyOps(
+  boardId: string,
+  ops: Op[],
+  clientId?: string,
+): Promise<OpResult[]> {
   const { data, error, status } = await supabase.rpc('apply_board_ops', {
     p_board: boardId,
     p_ops: ops,
+    p_client: clientId ?? null,
   });
   if (error) throw new NetworkOrServerError(error.message, isTransient(status));
   return (data as { results: OpResult[] }).results;
@@ -75,6 +130,7 @@ export async function createBoard(name: string): Promise<string> {
 export interface LoadedBoard {
   snapshot: BoardSnapshot;
   contentRevisions: Map<string, number>;
+  revisions: Map<string, number>;
 }
 
 /** Renvoie `null` si le tableau n'existe pas ou n'est pas accessible. */
@@ -103,28 +159,17 @@ export async function loadBoard(boardId: string): Promise<LoadedBoard | null> {
   }
 
   const contentRevisions = new Map<string, number>();
+  const revisions = new Map<string, number>();
   const mapped: Record<string, BoardElement> = {};
   for (const row of (elements.data ?? []) as ElementRow[]) {
     contentRevisions.set(row.id, row.content_revision);
-    mapped[row.id] = {
-      id: row.id,
-      type: row.type,
-      x: row.x,
-      y: row.y,
-      width: row.width,
-      height: row.height,
-      zIndex: row.z_index,
-      content: row.content,
-      style: row.style,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-      authorId: row.created_by,
-      ...(row.type === 'postit' ? { tags: tagsByElement.get(row.id) ?? {} } : {}),
-    } as BoardElement;
+    revisions.set(row.id, row.revision);
+    mapped[row.id] = elementFromRow(row, tagsByElement.get(row.id) ?? {});
   }
 
   return {
     contentRevisions,
+    revisions,
     snapshot: {
       name: board.data.name,
       elements: mapped,

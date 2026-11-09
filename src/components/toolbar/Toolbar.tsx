@@ -8,6 +8,7 @@ export function Toolbar() {
   const tool = useUiStore((state) => state.tool);
   const setUi = useUiStore((state) => state.set);
   const filtersOpen = useUiStore((state) => state.filtersOpen);
+  const readOnly = useUiStore((state) => state.role === 'viewer');
   const activeCount = useUiStore((state) => activeFilterCount(state.filters));
 
   return (
@@ -29,9 +30,13 @@ export function Toolbar() {
         active={tool === 'hand'}
         onClick={() => setUi({ tool: 'hand' })}
       />
-      <div className="mx-2 my-1 h-px bg-line" />
-      <IconButton icon={Type} label="Ajouter un texte" shortcut="T" onClick={addText} />
-      <IconButton icon={StickyNote} label="Ajouter un post-it" shortcut="N" onClick={() => addPostit()} />
+      {!readOnly && (
+        <>
+          <div className="mx-2 my-1 h-px bg-line" />
+          <IconButton icon={Type} label="Ajouter un texte" shortcut="T" onClick={addText} />
+          <IconButton icon={StickyNote} label="Ajouter un post-it" shortcut="N" onClick={() => addPostit()} />
+        </>
+      )}
       <div className="mx-2 my-1 h-px bg-line" />
       <div className="relative">
         <IconButton

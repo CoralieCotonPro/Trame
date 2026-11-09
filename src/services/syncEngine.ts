@@ -27,12 +27,17 @@ export class SyncEngine {
   private retries = 0;
   private stopped = false;
   private writing: Promise<unknown> = Promise.resolve();
+  private readonly editBases = new Map<string, number>();
+  /** Nombre de réponses reçues : sert à détecter un rechargement devenu obsolète. */
+  acknowledged = 0;
 
   constructor(
     private readonly boardId: string,
     private readonly storageKey: string,
     initialQueue: Op[],
     private readonly contentRevisions: Map<string, number>,
+    private readonly revisions: Map<string, number>,
+    private readonly clientId: string,
     private readonly callbacks: SyncCallbacks,
   ) {
     this.queue = initialQueue;
@@ -53,6 +58,20 @@ export class SyncEngine {
     return this.queue.length === 0;
   }
 
+  pending(): Op[] {
+    return this.queue;
+  }
+
+  /** Une édition s'appuie sur la version du texte au moment où elle a commencé. */
+  beginEdit(elementId: string) {
+    const revision = this.contentRevisions.get(elementId);
+    if (revision !== undefined) this.editBases.set(elementId, revision);
+  }
+
+  endEdit(elementId: string) {
+    this.editBases.delete(elementId);
+  }
+
   add(ops: Op[]) {
     if (ops.length === 0) return;
     for (const op of ops) {
@@ -66,7 +85,7 @@ export class SyncEngine {
 
   private withBaseRevision(op: Op): Op {
     if (op.kind !== 'element.patch' || !op.content) return op;
-    const base = this.contentRevisions.get(op.element_id);
+    const base = this.editBases.get(op.element_id) ?? this.contentRevisions.get(op.element_id);
     return base === undefined ? op : { ...op, base_content_revision: base };
   }
 
@@ -109,7 +128,7 @@ export class SyncEngine {
     await this.writing;
 
     try {
-      const results = await applyOps(this.boardId, batch);
+      const results = await applyOps(this.boardId, batch, this.clientId);
       this.acknowledge(batch, results);
       this.retries = 0;
       useSyncStore.getState().set({ state: 'saving' });
@@ -129,6 +148,7 @@ export class SyncEngine {
   private acknowledge(batch: Op[], results: OpResult[]) {
     this.queue = this.queue.slice(batch.length);
     this.inFlight = 0;
+    this.acknowledged += 1;
 
     batch.forEach((op, index) => {
       const result = results[index];
@@ -140,6 +160,9 @@ export class SyncEngine {
             ? op.element_id
             : null;
 
+      if (elementId && result.revision !== undefined) {
+        this.revisions.set(elementId, result.revision);
+      }
       if (elementId && result.content_revision !== undefined) {
         this.contentRevisions.set(elementId, result.content_revision);
         this.rebaseQueued(elementId, result.content_revision);

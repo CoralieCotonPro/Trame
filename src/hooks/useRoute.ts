@@ -2,10 +2,15 @@ import { useEffect, useState } from 'react';
 
 const UUID = /^\/b\/([0-9a-f-]{36})\/?$/i;
 
-export type Route = { name: 'home' } | { name: 'board'; id: string } | { name: 'not-found' };
+export type Route =
+  | { name: 'home' }
+  | { name: 'join' }
+  | { name: 'board'; id: string }
+  | { name: 'not-found' };
 
 function parse(pathname: string): Route {
   if (pathname === '/' || pathname === '') return { name: 'home' };
+  if (pathname === '/rejoindre') return { name: 'join' };
   const id = UUID.exec(pathname)?.[1];
   return id ? { name: 'board', id } : { name: 'not-found' };
 }

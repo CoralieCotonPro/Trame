@@ -175,17 +175,22 @@ test('conflit réel : le second texte est conservé dans une copie', async ({ pa
   const other = await secondSession(browser, user, boardId);
   await expect(items(other)).toHaveCount(1);
 
-  const editIn = async (target: Page, text: string) => {
+  const startEdit = async (target: Page) => {
     const point = await center(target, items(target).first());
     await target.mouse.dblclick(point.x, point.y);
+  };
+  const finishEdit = async (target: Page, text: string) => {
     await target.getByRole('textbox', { name: 'Texte du post-it' }).fill(text);
     await target.keyboard.press('Escape');
     await saved(target);
   };
 
-  await editIn(page, 'Version A');
+  // Les deux personnes ouvrent l'édition avant que l'une ne valide.
+  await startEdit(page);
+  await startEdit(other);
+  await finishEdit(page, 'Version A');
   await expect(items(page).first()).toHaveText('Post-it : Version A');
-  await editIn(other, 'Version B');
+  await finishEdit(other, 'Version B');
 
   await expect(other.getByRole('alert')).toContainText('copie juste à côté');
   await expect(items(other).filter({ hasText: 'Version A' })).toHaveCount(1);
