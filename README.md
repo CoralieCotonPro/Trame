@@ -2,7 +2,7 @@
 
 Trame est un tableau blanc collaboratif et libre pour construire collectivement la roadmap d'Envergo.
 
-> **État actuel : étape 6 sur 6.** L'application est complète et testée en local. Sa mise en ligne suit le guide [docs/DEPLOIEMENT.md](docs/DEPLOIEMENT.md).
+> **En ligne :** <https://trame-envergo.netlify.app>
 
 | Étape | Contenu | État |
 | --- | --- | --- |
@@ -11,7 +11,7 @@ Trame est un tableau blanc collaboratif et libre pour construire collectivement 
 | 3 | Tags, couleurs et filtres | Validée |
 | 4 | Supabase et sauvegarde persistante | Validée |
 | 5 | Temps réel, participants, partage sécurisé | Validée |
-| 6 | Exports, tests complémentaires, optimisations, Netlify | Validée, mise en ligne en cours |
+| 6 | Exports, tests complémentaires, optimisations, Netlify | Validée |
 
 - [État des fonctionnalités et limites connues](docs/ETAT.md)
 - [Mise en ligne](docs/DEPLOIEMENT.md)

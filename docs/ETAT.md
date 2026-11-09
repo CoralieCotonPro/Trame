@@ -30,7 +30,7 @@
 | Export JSON versionné, import validé avec confirmation | Oui | Oui | Fonctionne |
 | Export PNG cadré, éléments hors écran compris | Oui | Oui | Fonctionne |
 | Accessibilité : clavier, libellés, contrastes | Partielle | Partielle | Voir les limites |
-| Déploiement Netlify | Préparé | Non | À réaliser, voir DEPLOIEMENT.md |
+| Déploiement Netlify | Oui | Manuellement | En ligne : https://trame-envergo.netlify.app |
 
 ## Performance
 
@@ -40,7 +40,7 @@ Avec 10 participants bougeant tous en même temps : 75 messages/s (limite gratui
 
 ## Limites connues
 
-- **Pas encore vérifié en ligne :** tout a été testé contre Supabase en local. La politique de sécurité de `netlify.toml` a été testée contre le build, mais les en-têtes réels de Netlify ne le seront qu'au déploiement.
+- **Vérifications en ligne :** les tests automatisés tournent contre Supabase en local. La version en ligne a été contrôlée manuellement.
 - **Texte simultané :** pas de fusion caractère par caractère. Le second texte validé est placé dans un post-it copie, à réconcilier à la main.
 - **Suppression pendant une édition :** si un élément est supprimé pendant qu'une autre personne le modifie, la suppression gagne et le texte en cours est perdu. Un message la prévient.
 - **Annulation :** elle ne couvre pas la suppression d'un tag du catalogue, ni un import, qui demandent une confirmation.
