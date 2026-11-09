@@ -1,7 +1,34 @@
 import { expect, type Locator, type Page } from '@playwright/test';
+import { createUser, magicLink, type TestUser } from './backend';
 
 export const canvas = (page: Page) => page.getByTestId('board-canvas');
 export const items = (page: Page) => page.locator('[data-element-id]');
+export const status = (page: Page) => page.getByTestId('save-status');
+export const saved = (page: Page) => expect(status(page)).toHaveText('Enregistré');
+
+const BASE_URL = 'http://localhost:4173';
+
+export async function signIn(page: Page, user: TestUser, path = '/') {
+  await page.goto(await magicLink(user.email, `${BASE_URL}${path}`));
+}
+
+export async function openBoardAs(
+  page: Page,
+  user: TestUser,
+  boardId: string,
+  { expectBoard = true } = {},
+) {
+  await signIn(page, user, `/b/${boardId}`);
+  if (expectBoard) await expect(canvas(page).locator('canvas').first()).toBeVisible();
+}
+
+/** Compte neuf et tableau neuf, créés par l'interface : aucun état partagé entre tests. */
+export async function openNewBoard(page: Page) {
+  await signIn(page, await createUser());
+  await page.getByRole('textbox', { name: 'Nom du nouveau tableau' }).fill('Test');
+  await page.getByRole('button', { name: 'Créer' }).click();
+  await expect(canvas(page).locator('canvas').first()).toBeVisible();
+}
 
 export interface ElementBox {
   x: number;

@@ -1,12 +1,12 @@
 import { expect, test } from '@playwright/test';
-import { addPostit, addText, box, camera, canvas, center, drag, items, toScreen } from './helpers';
+import { addPostit, addText, box, camera, canvas, center, drag, items, openNewBoard, toScreen } from './helpers';
 
 let errors: string[] = [];
 
 test.beforeEach(async ({ page }) => {
   errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
-  await page.goto('/');
+  await openNewBoard(page);
   await expect(canvas(page).locator('canvas').first()).toBeVisible();
 });
 

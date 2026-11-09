@@ -2,14 +2,14 @@
 
 Tableau blanc collaboratif et libre pour construire collectivement la roadmap d'Envergo.
 
-> **État actuel : étape 3 sur 6.** Le tableau, les tags et les filtres fonctionnent en local, pour une seule personne. Rien n'est encore enregistré : un rechargement de la page efface tout, jusqu'à l'étape 4.
+> **État actuel : étape 4 sur 6.** Les tableaux sont enregistrés dans Supabase, avec un compte propriétaire. Le travail à plusieurs et le partage arrivent à l'étape 5.
 
 | Étape | Contenu | État |
 | --- | --- | --- |
 | 1 | Architecture et initialisation | Validée |
 | 2 | Tableau local : post-it, texte, déplacement, zoom | Validée |
 | 3 | Tags, couleurs et filtres | Validée |
-| 4 | Supabase et sauvegarde persistante | À faire |
+| 4 | Supabase et sauvegarde persistante | Validée |
 | 5 | Temps réel, participants, partage sécurisé | À faire |
 | 6 | Exports, tests complémentaires, optimisations, Netlify | À faire |
 
@@ -17,7 +17,7 @@ Les choix techniques sont expliqués dans [docs/ARCHITECTURE.md](docs/ARCHITECTU
 
 ## Démarrage local
 
-Prérequis : Node.js 22 ou plus récent.
+Prérequis : Node.js 22 ou plus récent, et Docker Desktop. Voir [docs/SUPABASE.md](docs/SUPABASE.md) pour la base de données.
 
 ```bash
 npm install

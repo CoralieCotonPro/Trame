@@ -1,32 +1,26 @@
-import { BoardCanvas } from './components/board/BoardCanvas';
-import { ElementEditor } from './components/board/ElementEditor';
-import { ElementsA11yList } from './components/board/ElementsA11yList';
-import { PropertiesPanel } from './components/board/PropertiesPanel';
-import { ContextMenu } from './components/dialogs/ContextMenu';
-import { FiltersPanel } from './components/tags/FiltersPanel';
-import { TagManager } from './components/tags/TagManager';
-import { TagPicker } from './components/tags/TagPicker';
-import { Toolbar } from './components/toolbar/Toolbar';
-import { TopBar } from './components/toolbar/TopBar';
-import { ZoomBar } from './components/toolbar/ZoomBar';
-import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { BoardPage } from './components/pages/BoardPage';
+import { HomePage } from './components/pages/HomePage';
+import { LoginPage } from './components/pages/LoginPage';
+import { useRoute } from './hooks/useRoute';
+import { useSession } from './hooks/useSession';
+import { isConfigured } from './lib/supabase';
+
+function Centered({ text }: { text: string }) {
+  return <main className="flex h-full items-center justify-center p-4 text-center">{text}</main>;
+}
 
 export function App() {
-  useKeyboardShortcuts();
+  const session = useSession();
+  const route = useRoute();
 
-  return (
-    <main className="relative h-full w-full overflow-hidden">
-      <BoardCanvas />
-      <ElementEditor />
-      <TopBar />
-      <Toolbar />
-      <ZoomBar />
-      <PropertiesPanel />
-      <ContextMenu />
-      <FiltersPanel />
-      <TagPicker />
-      <TagManager />
-      <ElementsA11yList />
-    </main>
-  );
+  if (!isConfigured) {
+    return <Centered text="Application non configurée : renseignez les variables Supabase (voir README)." />;
+  }
+  if (session === undefined) return <Centered text="Chargement…" />;
+  if (session === null) return <LoginPage />;
+  if (route.name === 'not-found') return <Centered text="Cette page n'existe pas." />;
+  if (route.name === 'board') {
+    return <BoardPage key={route.id} boardId={route.id} userId={session.user.id} />;
+  }
+  return <HomePage />;
 }

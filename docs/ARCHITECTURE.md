@@ -104,6 +104,8 @@ Pendant un glissement, la position est diffusée quelques fois par seconde et in
 
 ## Sauvegarde
 
+- Les modifications sont déduites de l'état (`lib/ops.ts`) : toute action, annulation comprise, est sauvegardée sans code spécifique.
+- `apply_board_ops` isole chaque opération : une opération refusée n'annule pas les autres du lot, et le tableau est alors rechargé depuis le serveur.
 - Chaque modification entre dans une **file d'envoi conservée dans IndexedDB**, qui survit à un rechargement. La base reste la référence.
 - Seuls les champs modifiés sont envoyés, par petits lots. Le tableau entier n'est jamais réécrit.
 - « Enregistré » ne s'affiche qu'après confirmation du serveur. En cas d'échec : nouvelles tentatives espacées et état visible.

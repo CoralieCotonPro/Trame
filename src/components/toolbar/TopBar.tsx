@@ -1,8 +1,10 @@
-import { Menu } from 'lucide-react';
+import { ArrowLeft, Menu } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { navigate } from '../../hooks/useRoute';
 import { useBoardStore } from '../../stores/boardStore';
 import { useUiStore } from '../../stores/uiStore';
 import { IconButton } from './IconButton';
+import { SaveStatus } from './SaveStatus';
 
 function Toggle({
   label,
@@ -86,7 +88,13 @@ export function TopBar() {
 
   return (
     <header className="pointer-events-none absolute inset-x-4 top-4 z-30 flex items-start justify-between gap-4">
-      <div className="pointer-events-auto flex min-w-0 items-center gap-3 rounded-panel border border-line bg-surface px-3 py-1.5 shadow-panel">
+      <div className="pointer-events-auto flex min-w-0 items-center gap-2 rounded-panel border border-line bg-surface py-1 pr-3 pl-1 shadow-panel">
+        <IconButton
+          icon={ArrowLeft}
+          label="Mes tableaux"
+          tooltipSide="bottom"
+          onClick={() => navigate('/')}
+        />
         <input
           value={name}
           maxLength={120}
@@ -94,9 +102,7 @@ export function TopBar() {
           aria-label="Nom du tableau"
           className="h-8 w-52 min-w-0 rounded-md bg-transparent px-1 font-semibold"
         />
-        <span className="text-sm whitespace-nowrap text-ink-soft">
-          Non enregistré : perdu au rechargement
-        </span>
+        <SaveStatus />
       </div>
       <div className="pointer-events-auto rounded-panel border border-line bg-surface p-1 shadow-panel">
         <MainMenu />

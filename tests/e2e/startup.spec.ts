@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { openNewBoard } from './helpers';
 
 test("l'application démarre en français avec une surface Konva, sans erreur", async ({ page }) => {
   const errors: string[] = [];
@@ -7,7 +8,7 @@ test("l'application démarre en français avec une surface Konva, sans erreur", 
     if (message.type() === 'error') errors.push(message.text());
   });
 
-  await page.goto('/');
+  await openNewBoard(page);
 
   await expect(page.locator('html')).toHaveAttribute('lang', 'fr');
   await expect(page.getByRole('textbox', { name: 'Nom du tableau' })).toBeVisible();

@@ -46,7 +46,9 @@ export const useTagStore = create<TagState>((set, get) => {
     valuesOf(get().values, categoryId).map((v) => ({ id: v.id, text: v.label }));
 
   return {
-    ...createDefaultCatalog(),
+    // Le catalogue vient du tableau chargé ; les valeurs par défaut sont créées avec le tableau.
+    categories: [],
+    values: [],
 
     addCategory: (rawName) => {
       const name = normalizeLabel(rawName);
