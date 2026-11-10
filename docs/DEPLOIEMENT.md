@@ -86,11 +86,23 @@ Dans Supabase, **Authentication → URL Configuration** :
 
 ## Publier une mise à jour
 
-```bash
-npx netlify-cli deploy --build --prod
-```
+Tout passe par GitHub (https://github.com/CoralieCotonPro/Trame). Le robot `.github/workflows/production.yml` s'en charge :
 
-Si un nouveau fichier est apparu dans `supabase/migrations/`, exécutez-le d'abord dans le SQL Editor.
+1. **Une proposition** (pull request) est ouverte depuis une branche. Le robot lance toutes les vérifications, puis publie un **aperçu** à l'adresse `https://pr-<numéro>--trame-envergo.netlify.app`, indiquée en commentaire de la proposition. Cet aperçu utilise la base de production.
+2. **On fusionne la proposition** (bouton **Merge** sur GitHub). Le robot vérifie à nouveau, applique les nouveaux fichiers de `supabase/migrations/` à la base, puis publie le site. Si une étape échoue, rien n'est mis en ligne. Le suivi se trouve dans l'onglet **Actions** du dépôt.
+
+Ce que le robot utilise :
+
+| Où | Nom | Rôle |
+| --- | --- | --- |
+| GitHub → Settings → Secrets and variables → Actions → Secrets | `SUPABASE_ACCESS_TOKEN` | Clé Supabase limitée au projet Trame : Project Settings (lecture), Database et Migrations (écriture) |
+| idem | `NETLIFY_AUTH_TOKEN` | Clé personnelle Netlify |
+| idem → Variables | `SUPABASE_PROJECT_ID`, `NETLIFY_SITE_ID` | Identifiants du projet et du site |
+| idem → Variables | `SUPABASE_POOLER_URL` | Adresse IPv4 de la base, sans mot de passe : les machines GitHub n'ont pas d'IPv6 |
+
+**Si la clé Supabase ou Netlify expire ou est supprimée**, la mise en ligne échoue avec une erreur d'authentification : recréez-la avec les mêmes droits et remplacez le secret sur GitHub (crayon à côté de son nom).
+
+**Dernier recours, sans GitHub :** `npx netlify-cli deploy --build --prod` publie le site depuis un ordinateur ; appliquez d'abord les nouvelles migrations avec `npx supabase db push --remote`.
 
 **Passage aux projets (`20261110000400_projects.sql`) :** exécutez la migration, activez le hook (étape 3), configurez le service d'envoi (étape 3 bis), puis vérifiez la liste **Authentication → Users**. Tout compte non anonyme qui y figure aura accès à tous les tableaux : supprimez ceux que vous ne reconnaissez pas. Les tableaux existants sont rangés dans Envergo.
 
