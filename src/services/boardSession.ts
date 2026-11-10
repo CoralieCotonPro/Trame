@@ -321,7 +321,7 @@ async function handleAccessChanged() {
   const current = session;
   if (!current) return;
   const [role, realtimeKey] = await Promise.all([
-    loadRole(current.boardId, current.userId),
+    loadRole(current.boardId),
     loadRealtimeKey(current.boardId),
   ]);
   if (session !== current) return;
@@ -347,7 +347,7 @@ export async function openBoard(
   const generation = openGeneration;
   const [loaded, role, realtimeKey] = await Promise.all([
     loadBoard(boardId),
-    loadRole(boardId, user.id),
+    loadRole(boardId),
     loadRealtimeKey(boardId),
   ]);
   if (!loaded || !role || !realtimeKey) return 'not-found';

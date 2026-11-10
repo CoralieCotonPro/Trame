@@ -1,5 +1,14 @@
 import { expect, test } from '@playwright/test';
-import { admin, anonymous, apply, createBoardFor, createUser, ok, postitOp } from './backend';
+import {
+  admin,
+  anonymous,
+  apply,
+  createBoardFor,
+  createUser,
+  guestClient,
+  ok,
+  postitOp,
+} from './backend';
 
 /** Ces tests parlent directement à l'API, comme le ferait un navigateur malveillant. */
 
@@ -24,11 +33,14 @@ const value = (id: string, categoryId: string, label: string, color = '#ffffff')
   value: { id, category_id: categoryId, label, color, sort_order: 0 },
 });
 
-test('un inconnu ne peut ni lire ni modifier le tableau d’un autre', async () => {
-  const { stranger, boardId, elementId } = await setup();
+test('un invité sans lien ne peut ni lire ni modifier un tableau', async () => {
+  const { boardId, elementId } = await setup();
+  const stranger = await guestClient();
 
   expect((await stranger.client.from('boards').select('*').eq('id', boardId)).data).toEqual([]);
   expect((await stranger.client.from('elements').select('*').eq('board_id', boardId)).data).toEqual([]);
+  expect((await stranger.client.rpc('list_boards')).data).toEqual([]);
+  expect((await stranger.client.rpc('my_board_role', { p_board: boardId })).data).toBeNull();
 
   const write = await apply(stranger, boardId, [postitOp()]);
   expect(write.error?.code).toBe('42501');
@@ -53,6 +65,70 @@ test('un inconnu ne peut ni lire ni modifier le tableau d’un autre', async () 
   expect(data?.x).toBe(0);
 });
 
+test('un autre compte lit et modifie le tableau, mais ne peut ni le supprimer ni le partager', async () => {
+  const { owner, stranger: colleague, boardId, elementId } = await setup();
+
+  expect((await colleague.client.rpc('my_board_role', { p_board: boardId })).data).toBe('editor');
+  expect((await colleague.client.from('elements').select('id').eq('board_id', boardId)).data).toEqual([
+    { id: elementId },
+  ]);
+  await ok(colleague, boardId, [postitOp()]);
+  expect((await colleague.client.from('boards').update({ name: 'Renommé' }).eq('id', boardId)).error).toBeNull();
+
+  await colleague.client.from('boards').delete().eq('id', boardId);
+  expect((await admin.from('boards').select('id').eq('id', boardId)).data).toHaveLength(1);
+
+  const share = await colleague.client.rpc('create_share_link', { p_board: boardId, p_role: 'editor', p_days: 7 });
+  expect(share.error).not.toBeNull();
+  const demote = await colleague.client.rpc('set_member_role', {
+    p_board: boardId,
+    p_user: owner.id,
+    p_role: 'viewer',
+  });
+  expect(demote.error).not.toBeNull();
+  expect((await colleague.client.from('board_share_links').select('id').eq('board_id', boardId)).data).toEqual([]);
+  expect((await colleague.client.rpc('my_board_role', { p_board: boardId })).data).toBe('editor');
+  expect((await owner.client.rpc('my_board_role', { p_board: boardId })).data).toBe('owner');
+});
+
+test('la liste des tableaux donne le projet et l’e-mail du créateur, sauf à un invité', async () => {
+  const owner = await createUser();
+  const boardId = await createBoardFor(owner, 'Atelier', 'guh');
+  const colleague = await createUser();
+
+  const { data } = await colleague.client.rpc('list_boards');
+  const row = (data as { id: string; project_id: string; owner_email: string | null }[]).find(
+    (board) => board.id === boardId,
+  );
+  expect(row).toMatchObject({ project_id: 'guh', owner_email: owner.email });
+
+  const created = await owner.client.rpc('create_share_link', { p_board: boardId, p_role: 'viewer', p_days: 7 });
+  const guest = await guestClient();
+  await guest.client.rpc('redeem_share_link', {
+    p_token: (created.data as { token: string }).token,
+    p_display_name: 'Invité',
+  });
+  const seen = await guest.client.rpc('list_boards');
+  expect(seen.data).toEqual([expect.objectContaining({ id: boardId, owner_email: null })]);
+});
+
+test('un tableau doit appartenir à un projet existant', async () => {
+  const user = await createUser();
+  const missing = await user.client.from('boards').insert({ name: 'Sans projet', owner_id: user.id });
+  expect(missing.error).not.toBeNull();
+  const unknown = await user.client
+    .from('boards')
+    .insert({ name: 'Inconnu', owner_id: user.id, project_id: 'autre' });
+  expect(unknown.error).not.toBeNull();
+  const forged = await user.client.from('projects').insert({ id: 'pirate', name: 'Pirate' });
+  expect(forged.error).not.toBeNull();
+
+  // Le projet est choisi à la création ; il ne se change pas ensuite.
+  const boardId = await createBoardFor(user, 'Fixe', 'envergo');
+  const moved = await user.client.from('boards').update({ project_id: 'guh' }).eq('id', boardId);
+  expect(moved.error).not.toBeNull();
+});
+
 test('sans session, aucun accès', async () => {
   const { boardId } = await setup();
   const client = anonymous();
@@ -74,12 +150,13 @@ test('personne ne peut s’attribuer un droit ou voler un tableau', async () => 
   const steal = await owner.client.from('boards').update({ owner_id: stranger.id }).eq('id', boardId);
   expect(steal.error).not.toBeNull();
 
-  const fake = await stranger.client.from('boards').insert({ name: 'Faux', owner_id: owner.id });
+  const fake = await stranger.client.from('boards').insert({ name: 'Faux', owner_id: owner.id, project_id: 'envergo' });
   expect(fake.error).not.toBeNull();
 });
 
-test('un participant en lecture seule peut lire mais pas écrire', async () => {
-  const { stranger: viewer, boardId, elementId } = await setup();
+test('un invité en lecture seule peut lire mais pas écrire', async () => {
+  const { boardId, elementId } = await setup();
+  const viewer = await guestClient();
   await admin.from('board_permissions').insert({ board_id: boardId, user_id: viewer.id, role: 'viewer' });
 
   const read = await viewer.client.from('elements').select('id').eq('board_id', boardId);
@@ -92,6 +169,13 @@ test('un participant en lecture seule peut lire mais pas écrire', async () => {
     .select('*', { count: 'exact', head: true })
     .eq('id', elementId);
   expect(count).toBe(1);
+});
+
+test('un compte en lecture seule par lien reste éditeur, comme tout compte', async () => {
+  const { stranger: colleague, boardId } = await setup();
+  await admin.from('board_permissions').insert({ board_id: boardId, user_id: colleague.id, role: 'viewer' });
+  expect((await colleague.client.rpc('my_board_role', { p_board: boardId })).data).toBe('editor');
+  await ok(colleague, boardId, [postitOp()]);
 });
 
 test('révision et auteur ne peuvent pas être falsifiés', async () => {

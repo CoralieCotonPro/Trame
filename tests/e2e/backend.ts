@@ -32,6 +32,14 @@ export async function createUser(): Promise<TestUser> {
   return { id: data.user.id, email, client };
 }
 
+/** Session anonyme, comme un invité qui n'a pas encore ouvert de lien de partage. */
+export async function guestClient(): Promise<TestUser> {
+  const client = anonymous();
+  const { data, error } = await client.auth.signInAnonymously();
+  if (error) throw error;
+  return { id: data.user?.id as string, email: '', client };
+}
+
 export async function magicLink(email: string, redirectTo: string): Promise<string> {
   const { data, error } = await admin.auth.admin.generateLink({
     type: 'magiclink',
@@ -42,10 +50,14 @@ export async function magicLink(email: string, redirectTo: string): Promise<stri
   return data.properties.action_link;
 }
 
-export async function createBoardFor(user: TestUser, name = 'Test'): Promise<string> {
+export async function createBoardFor(
+  user: TestUser,
+  name = 'Test',
+  projectId = 'envergo',
+): Promise<string> {
   const { data, error } = await user.client
     .from('boards')
-    .insert({ name, owner_id: user.id })
+    .insert({ name, owner_id: user.id, project_id: projectId })
     .select('id')
     .single();
   if (error) throw error;

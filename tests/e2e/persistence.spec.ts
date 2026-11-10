@@ -1,5 +1,5 @@
 import { expect, test, type Browser, type Page } from '@playwright/test';
-import { createBoardFor, createUser, ok, type TestUser } from './backend';
+import { admin, anonymous, createBoardFor, createUser, ok, type TestUser } from './backend';
 import { addPostit, box, center, drag, items, openBoardAs, saved, status } from './helpers';
 
 const RPC = '**/rest/v1/rpc/apply_board_ops';
@@ -45,11 +45,46 @@ const signInForm = async (page: Page, email: string, password: string) => {
   await page.getByRole('button', { name: 'Se connecter' }).click();
 };
 
+test('une adresse hors beta.gouv.fr ne peut pas créer de compte', async ({ page }) => {
+  const email = `inconnu-${crypto.randomUUID()}@exemple.test`;
+  await page.goto('/');
+  await page.getByLabel('Adresse e-mail').fill(email);
+  await page.getByRole('button', { name: 'Recevoir un lien par e-mail' }).click();
+  await expect(page.getByRole('alert')).toContainText('Seules les adresses @beta.gouv.fr');
+  const { data } = await admin.auth.admin.listUsers({ perPage: 1000 });
+  expect(data.users.some((user) => user.email === email)).toBe(false);
+});
+
+test('l’inscription est filtrée par le serveur, même en contournant l’interface', async () => {
+  for (const email of [
+    `pirate-${crypto.randomUUID()}@exemple.test`,
+    `pirate-${crypto.randomUUID()}@beta.gouv.fr.exemple.test`,
+    `pirate-${crypto.randomUUID()}@faux-beta.gouv.fr`,
+  ]) {
+    const otp = await anonymous().auth.signInWithOtp({ email });
+    expect(otp.error?.status, email).toBe(403);
+    const signUp = await anonymous().auth.signUp({ email, password: crypto.randomUUID() });
+    expect(signUp.error?.status, email).toBe(403);
+  }
+
+  // Une adresse beta.gouv.fr non vérifiée n'ouvre aucune session : il faut cliquer le lien reçu.
+  const usurped = await anonymous().auth.signUp({
+    email: `usurpation-${crypto.randomUUID()}@beta.gouv.fr`,
+    password: crypto.randomUUID(),
+  });
+  expect(usurped.error).toBeNull();
+  expect(usurped.data.session).toBeNull();
+
+  // Les invités, eux, peuvent toujours ouvrir une session anonyme.
+  expect((await anonymous().auth.signInAnonymously()).error).toBeNull();
+});
+
 test('première connexion par lien e-mail, puis mot de passe défini et utilisé', async ({
   page,
   browser,
 }) => {
-  const email = `lien-${crypto.randomUUID()}@exemple.test`;
+  // Inscription libre : le premier lien crée le compte.
+  const email = `prenom.nom-${crypto.randomUUID().slice(0, 8)}@beta.gouv.fr`;
   await page.goto('/');
   await page.getByLabel('Adresse e-mail').fill(email);
   await page.getByRole('button', { name: 'Recevoir un lien par e-mail' }).click();
@@ -58,7 +93,7 @@ test('première connexion par lien e-mail, puis mot de passe défini et utilisé
   const message = await lastEmail(email);
   const link = /https?:\/\/[^\s"<>]+\/auth\/v1\/verify[^\s"<>]+/.exec(message)?.[0] as string;
   await page.goto(link.replaceAll('&amp;', '&'));
-  await expect(page.getByRole('heading', { name: 'Mes tableaux' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Tableaux' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Mot de passe' }).click();
   const form = page.getByRole('form', { name: 'Définir mon mot de passe' });
@@ -76,16 +111,16 @@ test('première connexion par lien e-mail, puis mot de passe défini et utilisé
   // Sur un autre appareil : plus besoin d'e-mail.
   const phone = await (await browser.newContext()).newPage();
   await signInForm(phone, email, password);
-  await expect(phone.getByRole('heading', { name: 'Mes tableaux' })).toBeVisible();
+  await expect(phone.getByRole('heading', { name: 'Tableaux' })).toBeVisible();
   await phone.reload();
-  await expect(phone.getByRole('heading', { name: 'Mes tableaux' })).toBeVisible();
+  await expect(phone.getByRole('heading', { name: 'Tableaux' })).toBeVisible();
 });
 
 test('un mauvais mot de passe est refusé avec un message clair', async ({ page }) => {
   const user = await createUser();
   await signInForm(page, user.email, 'pas-le-bon-mot-de-passe');
   await expect(page.getByRole('alert')).toContainText('Adresse ou mot de passe incorrect');
-  await expect(page.getByRole('heading', { name: 'Mes tableaux' })).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Tableaux' })).toHaveCount(0);
 });
 
 test('demander un lien sans adresse affiche une consigne', async ({ page }) => {
@@ -110,7 +145,8 @@ test('crée un tableau, le retrouve dans la liste et après rechargement', async
   await openBoardAs(page, user, boardId);
 
   const name = page.getByRole('textbox', { name: 'Nom du tableau' });
-  await name.fill('Roadmap Envergo');
+  const title = `Roadmap ${crypto.randomUUID().slice(0, 8)}`;
+  await name.fill(title);
   const postit = await addPostit(page, 'Persistant');
   await page.getByRole('button', { name: 'Couleur Rose' }).click();
   const moved = await center(page, postit);
@@ -127,10 +163,10 @@ test('crée un tableau, le retrouve dans la liste et après rechargement', async
   expect(await box(reloaded)).toEqual(before);
   await expect(reloaded).toHaveAttribute('data-color', 'pink');
   await expect(reloaded).toHaveAttribute('data-tags', 'M');
-  await expect(name).toHaveValue('Roadmap Envergo');
+  await expect(name).toHaveValue(title);
 
-  await page.getByRole('button', { name: 'Mes tableaux' }).click();
-  await expect(page.getByRole('link', { name: /Roadmap Envergo/ })).toBeVisible();
+  await page.getByRole('button', { name: 'Tableaux' }).click();
+  await expect(page.getByRole('link', { name: new RegExp(title) })).toBeVisible();
 });
 
 test('les titres, le catalogue et une suppression sont conservés', async ({ page }) => {
@@ -307,9 +343,15 @@ test('annuler une suppression recrée bien l’élément sur le serveur', async 
   await expect(items(page).filter({ hasText: 'Revenant' })).toHaveCount(1);
 });
 
-test('un tableau d’un autre compte n’est pas accessible', async ({ page }) => {
+test('un tableau d’un autre compte de l’équipe est ouvert en édition', async ({ page }) => {
   const owner = await createUser();
   const boardId = await seededBoard(owner);
-  await openBoardAs(page, await createUser(), boardId, { expectBoard: false });
+  await openBoardAs(page, await createUser(), boardId);
+  await addPostit(page, 'Contribution');
+  await saved(page);
+});
+
+test('un tableau inexistant affiche un message clair', async ({ page }) => {
+  await openBoardAs(page, await createUser(), crypto.randomUUID(), { expectBoard: false });
   await expect(page.getByText("Ce tableau n'existe pas, ou vous n'y avez pas accès.")).toBeVisible();
 });

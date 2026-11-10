@@ -26,6 +26,7 @@ export async function openBoardAs(
 export async function openNewBoard(page: Page) {
   await signIn(page, await createUser());
   await page.getByRole('textbox', { name: 'Nom du nouveau tableau' }).fill('Test');
+  await page.getByRole('combobox', { name: 'Projet du nouveau tableau' }).selectOption('envergo');
   await page.getByRole('button', { name: 'Créer' }).click();
   await expect(canvas(page).locator('canvas').first()).toBeVisible();
 }

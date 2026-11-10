@@ -15,8 +15,10 @@
 | Catégories et valeurs de tags personnalisables | Oui | Oui | Fonctionne |
 | Tags sur post-it, propagation des libellés et couleurs | Oui | Oui | Fonctionne |
 | Filtres combinés | Oui | Oui | Fonctionne |
-| Connexion du propriétaire par mot de passe, lien e-mail en secours | Oui | Oui | En ligne |
+| Connexion par mot de passe, lien e-mail pour la première visite et en secours | Oui | Oui | En ligne |
 | Création, liste et suppression de tableaux | Oui | Oui | Fonctionne |
+| Projets Envergo / GUH, choisis à la création ; filtres par projet et par créateur | Oui | Oui | Fonctionne en local |
+| Accès d'équipe : tout compte voit et modifie tous les tableaux ; inscription libre réservée aux adresses @beta.gouv.fr | Oui | Oui | Fonctionne en local (hook et SMTP à configurer en ligne) |
 | Sauvegarde automatique et indicateur fiable | Oui | Oui | Fonctionne |
 | Modifications conservées hors connexion, nouvelles tentatives | Oui | Oui | Fonctionne |
 | Temps réel entre navigateurs | Oui | Oui | Fonctionne en local |

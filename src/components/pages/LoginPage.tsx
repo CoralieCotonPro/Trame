@@ -44,14 +44,17 @@ export function LoginPage() {
     setError(null);
     const { error: sendError } = await supabase.auth.signInWithOtp({
       email: email.trim(),
+      // Le premier lien crée le compte ; la base n'accepte que les adresses @beta.gouv.fr.
       options: { emailRedirectTo: window.location.origin },
     });
     if (sendError) {
       setStatus('idle');
       setError(
         sendError.status === 429
-          ? "Trop d'envois récents (2 par heure au maximum). Patientez avant de redemander un lien."
-          : "L'envoi a échoué. Vérifiez l'adresse et réessayez dans quelques instants.",
+          ? "Trop d'envois récents. Patientez quelques minutes avant de redemander un lien."
+          : sendError.status === 403
+            ? 'Seules les adresses @beta.gouv.fr peuvent créer un compte.'
+            : "L'envoi a échoué. Vérifiez l'adresse et réessayez dans quelques instants.",
       );
       return;
     }
@@ -67,7 +70,7 @@ export function LoginPage() {
           <div className="mt-3">
             <p role="status" className="text-ink-soft">
               Un lien de connexion a été envoyé à <strong className="text-ink">{email}</strong>.
-              Ouvrez-le, puis définissez un mot de passe depuis la page « Mes tableaux » : vous
+              Ouvrez-le, puis définissez un mot de passe depuis la page « Tableaux » : vous
               n'aurez plus besoin d'e-mail ensuite.
             </p>
             <button
@@ -115,7 +118,10 @@ export function LoginPage() {
             </form>
 
             <div className="mt-5 border-t border-line pt-4">
-              <p className="text-sm text-ink-soft">Mot de passe oublié ou pas encore défini ?</p>
+              <p className="text-sm text-ink-soft">
+                Première visite, ou mot de passe oublié ? Recevez un lien de connexion. Le compte
+                est créé automatiquement pour une adresse @beta.gouv.fr.
+              </p>
               <button
                 type="button"
                 disabled={status === 'busy'}

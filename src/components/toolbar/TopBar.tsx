@@ -154,7 +154,7 @@ export function TopBar() {
       <div className="pointer-events-auto flex min-w-0 items-center gap-2 rounded-panel border border-line bg-surface py-1 pr-3 pl-1 shadow-panel">
         <IconButton
           icon={ArrowLeft}
-          label="Mes tableaux"
+          label="Tableaux"
           tooltipSide="bottom"
           onClick={() => navigate('/')}
         />

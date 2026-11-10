@@ -1,5 +1,6 @@
 import type { Op, OpResult, BoardSnapshot } from '../lib/ops';
 import { categoryOp, valueOp } from '../lib/ops';
+import type { ProjectId } from '../lib/projects';
 import { supabase } from '../lib/supabase';
 import { createDefaultCatalog } from '../stores/tagStore';
 import type { BoardElement } from '../types/board';
@@ -9,6 +10,9 @@ export interface BoardSummary {
   name: string;
   updated_at: string;
   owner_id: string;
+  project_id: ProjectId;
+  /** `null` pour un invité : les e-mails ne lui sont pas communiqués. */
+  owner_email: string | null;
 }
 
 export type BoardRole = 'owner' | 'editor' | 'viewer';
@@ -45,12 +49,9 @@ function isTransient(status: number): boolean {
 }
 
 export async function listBoards(): Promise<BoardSummary[]> {
-  const { data, error } = await supabase
-    .from('boards')
-    .select('id, name, updated_at, owner_id')
-    .order('updated_at', { ascending: false });
+  const { data, error } = await supabase.rpc('list_boards');
   if (error) throw new Error(error.message);
-  return data;
+  return data as BoardSummary[];
 }
 
 export async function deleteBoard(boardId: string) {
@@ -58,16 +59,14 @@ export async function deleteBoard(boardId: string) {
   if (error) throw new Error(error.message);
 }
 
-/** `null` si la personne n'a pas (ou plus) accès à ce tableau. */
-export async function loadRole(boardId: string, userId: string): Promise<BoardRole | null> {
-  const { data, error, status } = await supabase
-    .from('board_permissions')
-    .select('role')
-    .eq('board_id', boardId)
-    .eq('user_id', userId)
-    .maybeSingle();
+/**
+ * `null` si la personne n'a pas (ou plus) accès à ce tableau.
+ * Un compte est éditeur de tous les tableaux ; un invité n'a que les droits obtenus par lien.
+ */
+export async function loadRole(boardId: string): Promise<BoardRole | null> {
+  const { data, error, status } = await supabase.rpc('my_board_role', { p_board: boardId });
   if (error) throw new NetworkOrServerError(error.message, isTransient(status));
-  return (data?.role as BoardRole | undefined) ?? null;
+  return (data as BoardRole | null) ?? null;
 }
 
 /** Clé du canal temps réel, renouvelée à chaque changement de droits. */
@@ -113,11 +112,11 @@ export async function applyOps(
   return (data as { results: OpResult[] }).results;
 }
 
-export async function createBoard(name: string): Promise<string> {
+export async function createBoard(name: string, projectId: ProjectId): Promise<string> {
   const { data: session } = await supabase.auth.getUser();
   const { data, error } = await supabase
     .from('boards')
-    .insert({ name, owner_id: session.user?.id })
+    .insert({ name, owner_id: session.user?.id, project_id: projectId })
     .select('id')
     .single();
   if (error) throw new Error(error.message);

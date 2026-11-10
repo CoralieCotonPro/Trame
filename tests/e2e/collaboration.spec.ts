@@ -1,10 +1,10 @@
 import { expect, test, type Browser, type Page } from '@playwright/test';
 import {
   admin,
-  anonymous,
   apply,
   createBoardFor,
   createUser,
+  guestClient,
   ok,
   postitOp,
   type TestUser,
@@ -342,7 +342,7 @@ test('supprimer un tableau demande confirmation, réservé au propriétaire', as
   const owner = await createUser();
   const boardId = await createBoardFor(owner, 'À jeter');
   await openBoardAs(page, owner, boardId);
-  await page.getByRole('button', { name: 'Mes tableaux' }).click();
+  await page.getByRole('button', { name: 'Tableaux' }).click();
 
   await page.getByRole('button', { name: 'Supprimer À jeter' }).click();
   await page.getByRole('button', { name: 'Annuler' }).click();
@@ -352,7 +352,7 @@ test('supprimer un tableau demande confirmation, réservé au propriétaire', as
   await page.getByRole('button', { name: 'Confirmer la suppression' }).click();
   await expect(page.getByRole('link', { name: /À jeter/ })).toHaveCount(0);
   await page.reload();
-  await expect(page.getByRole('heading', { name: 'Mes tableaux' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Tableaux' })).toBeVisible();
   await expect(page.getByRole('link', { name: /À jeter/ })).toHaveCount(0);
 
   const { count } = await admin.from('boards').select('*', { count: 'exact', head: true }).eq('id', boardId);
@@ -361,13 +361,6 @@ test('supprimer un tableau demande confirmation, réservé au propriétaire', as
 });
 
 // --- Contournements directs de l'API ---
-
-async function guestClient() {
-  const client = anonymous();
-  const { data, error } = await client.auth.signInAnonymously();
-  if (error) throw error;
-  return { id: data.user?.id as string, email: '', client } as TestUser;
-}
 
 async function link(owner: TestUser, boardId: string, role = 'editor') {
   const { data, error } = await owner.client.rpc('create_share_link', {
@@ -458,7 +451,7 @@ test('API : un lien de lecture ne rétrograde pas et ne promeut personne', async
 
 test('API : un invité anonyme ne peut pas créer de tableau', async () => {
   const guest = await guestClient();
-  const { error } = await guest.client.from('boards').insert({ name: 'Non', owner_id: guest.id });
+  const { error } = await guest.client.from('boards').insert({ name: 'Non', owner_id: guest.id, project_id: 'envergo' });
   expect(error).not.toBeNull();
 });
 
@@ -498,14 +491,23 @@ async function topic(boardId: string) {
   return `board:${boardId}:${data?.realtime_key as string}`;
 }
 
-test('API : un inconnu ne peut pas s’abonner, même en connaissant la clé du canal', async () => {
+test('API : un invité sans lien ne peut pas s’abonner, même en connaissant la clé du canal', async () => {
   const owner = await createUser();
   const boardId = await board(owner);
-  const stranger = await createUser();
+  const stranger = await guestClient();
   const name = await topic(boardId);
   expect(await joinStatus(stranger, name)).toBe('CHANNEL_ERROR');
   expect(await joinStatus(stranger, `${name}:presence`)).toBe('CHANNEL_ERROR');
   expect(await joinStatus(owner, name)).toBe('SUBSCRIBED');
+});
+
+test('API : un autre compte de l’équipe peut s’abonner sans avoir reçu de lien', async () => {
+  const owner = await createUser();
+  const boardId = await board(owner);
+  const colleague = await createUser();
+  const name = await topic(boardId);
+  expect(await joinStatus(colleague, name)).toBe('SUBSCRIBED');
+  expect(await joinStatus(colleague, `${name}:presence`)).toBe('SUBSCRIBED');
 });
 
 test('API : une connexion ouverte avant la révocation ne reçoit plus rien', async () => {

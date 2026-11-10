@@ -67,14 +67,20 @@ Les limites (longueur des textes, format des couleurs, nombre d'éléments par t
 
 ## Permissions
 
-Chaque personne possède un vrai compte Supabase : par e-mail pour le propriétaire, **anonyme** pour les invités, qui n'ont qu'un pseudonyme à saisir. La RLS peut ainsi s'appuyer partout sur `auth.uid()`.
+Chaque personne possède un vrai compte Supabase : par e-mail pour l'équipe, **anonyme** pour les invités, qui n'ont qu'un pseudonyme à saisir. La RLS peut ainsi s'appuyer partout sur `auth.uid()`.
 
-| Action | Propriétaire | Édition | Lecture seule | Sans accès |
-| --- | :-: | :-: | :-: | :-: |
-| Lire le tableau, être présent | oui | oui | oui | non |
-| Modifier éléments et tags | oui | oui | non | non |
-| Gérer les liens et les droits | oui | non | non | non |
-| Créer un tableau | oui (compte e-mail) | non si anonyme | non si anonyme | non |
+**Équipe.** Tout compte e-mail fait partie des projets Envergo et GUH : il voit **et modifie** tous les tableaux, sans lien de partage. Le propriétaire (le créateur) reste seul à pouvoir supprimer, partager et gérer les droits. Un invité anonyme n'a que les droits obtenus par lien. Ces règles sont dans `app_private.board_role` (migration `…_projects.sql`) ; le navigateur lit son rôle par `my_board_role` et la liste par `list_boards`, qui ajoute l'e-mail du créateur, jamais communiqué à un invité.
+
+**Comptes.** Puisqu'un compte donne accès à tout, seules les adresses **@beta.gouv.fr** peuvent se créer un compte depuis le site. Le hook Supabase « Before User Created » (`app_private.before_user_created`) refuse toutes les autres, sauf les sessions anonymes des invités. La confirmation d'e-mail obligatoire prouve que la personne possède l'adresse : sans clic sur le lien, aucune session. Un administrateur peut créer un compte pour une autre adresse depuis le tableau de bord, une voie qui ne passe pas par le hook.
+
+**Projets.** Chaque tableau appartient à un projet (`boards.project_id`, table `projects`), choisi par son créateur à la création, puis fixe. La page de liste filtre par projet et par créateur, côté navigateur, avec les filtres dans l'URL (`/?projet=guh&createur=<id>`).
+
+| Action | Propriétaire | Autre compte de l'équipe | Invité (édition) | Invité (lecture seule) | Sans accès |
+| --- | :-: | :-: | :-: | :-: | :-: |
+| Voir le tableau dans sa liste, le lire, être présent | oui | oui | oui | oui | non |
+| Modifier éléments, tags et nom | oui | oui | oui | non | non |
+| Supprimer, gérer les liens et les droits | oui | non | non | non | non |
+| Créer un tableau | oui | oui | non | non | non |
 
 Fonctionnement d'un lien de partage :
 
