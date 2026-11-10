@@ -41,6 +41,7 @@ async function lastEmail(email: string) {
 const signInForm = async (page: Page, email: string, password: string) => {
   await page.goto('/');
   await page.getByLabel('Adresse e-mail').fill(email);
+  await page.getByRole('button', { name: 'Continuer' }).click();
   await page.getByLabel('Mot de passe', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Se connecter' }).click();
 };
@@ -49,6 +50,7 @@ test('une adresse hors beta.gouv.fr ne peut pas créer de compte', async ({ page
   const email = `inconnu-${crypto.randomUUID()}@exemple.test`;
   await page.goto('/');
   await page.getByLabel('Adresse e-mail').fill(email);
+  await page.getByRole('button', { name: 'Continuer' }).click();
   await page.getByRole('button', { name: 'Recevoir un lien par e-mail' }).click();
   await expect(page.getByRole('alert')).toContainText('Seules les adresses @beta.gouv.fr');
   const { data } = await admin.auth.admin.listUsers({ perPage: 1000 });
@@ -87,6 +89,7 @@ test('première connexion par lien e-mail, puis mot de passe défini et utilisé
   const email = `prenom.nom-${crypto.randomUUID().slice(0, 8)}@beta.gouv.fr`;
   await page.goto('/');
   await page.getByLabel('Adresse e-mail').fill(email);
+  await page.getByRole('button', { name: 'Continuer' }).click();
   await page.getByRole('button', { name: 'Recevoir un lien par e-mail' }).click();
   await expect(page.getByRole('status')).toContainText(email);
 
@@ -119,14 +122,29 @@ test('première connexion par lien e-mail, puis mot de passe défini et utilisé
 test('un mauvais mot de passe est refusé avec un message clair', async ({ page }) => {
   const user = await createUser();
   await signInForm(page, user.email, 'pas-le-bon-mot-de-passe');
-  await expect(page.getByRole('alert')).toContainText('Adresse ou mot de passe incorrect');
+  await expect(page.getByRole('alert')).toContainText('Mot de passe incorrect, ou pas encore défini');
   await expect(page.getByRole('heading', { name: 'Tableaux' })).toHaveCount(0);
 });
 
-test('demander un lien sans adresse affiche une consigne', async ({ page }) => {
+test('l’adresse est demandée seule d’abord, puis les deux façons de se connecter', async ({
+  page,
+}) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'Recevoir un lien par e-mail' }).click();
-  await expect(page.getByRole('alert')).toContainText('adresse e-mail');
+  await expect(page.getByLabel('Mot de passe', { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Continuer' }).click();
+  // Champ requis : on reste sur la première étape.
+  await expect(page.getByRole('button', { name: 'Recevoir un lien par e-mail' })).toHaveCount(0);
+
+  await page.getByLabel('Adresse e-mail').fill('prenom.nom@beta.gouv.fr');
+  await page.getByRole('button', { name: 'Continuer' }).click();
+  await expect(page.getByText('prenom.nom@beta.gouv.fr')).toBeVisible();
+  await expect(page.getByRole('heading', { name: "J'ai déjà un mot de passe" })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Première connexion ou mot de passe oublié' }),
+  ).toBeVisible();
+
+  await page.getByRole('button', { name: 'Modifier' }).click();
+  await expect(page.getByLabel('Adresse e-mail')).toHaveValue('prenom.nom@beta.gouv.fr');
 });
 
 test('un ancien lien expiré affiche une explication au lieu d’un retour silencieux', async ({
