@@ -14,6 +14,7 @@ import {
 } from '../../lib/projects';
 import { supabase } from '../../lib/supabase';
 import { createBoard, deleteBoard, listBoards, type BoardSummary } from '../../services/boardApi';
+import { FeedbackWidget } from '../feedback/FeedbackWidget';
 import { IconButton } from '../toolbar/IconButton';
 import { PasswordForm } from './PasswordForm';
 
@@ -277,6 +278,7 @@ export function HomePage({ userId, isGuest }: { userId: string; isGuest: boolean
           <p className="mt-6 text-ink-soft">Aucun tableau ne correspond à ces filtres.</p>
         )}
       </div>
+      <FeedbackWidget className="fixed right-4 bottom-4" />
     </main>
   );
 }

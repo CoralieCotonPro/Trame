@@ -228,7 +228,7 @@ test('filtre combiné : taille M ou L, et statut À rédiger', async ({ page }) 
   await taggedPostit(page, 'L à faire', ['Sizing : L', 'Statut : À rédiger'], { x: 550, y: 200 });
   await taggedPostit(page, 'S à faire', ['Sizing : S', 'Statut : À rédiger'], { x: 850, y: 200 });
   await taggedPostit(page, 'M terminé', ['Sizing : M', 'Statut : En prod'], { x: 250, y: 500 });
-  await page.mouse.click(1150, 600);
+  await page.mouse.click(950, 600);
 
   await openFilters(page);
   await filtersPanel(page).getByRole('checkbox', { name: 'Filtrer Sizing : M', exact: true }).click();
@@ -250,7 +250,7 @@ test('un post-it filtré garde sa position et ne peut être ni cliqué ni suppri
   const hidden = await taggedPostit(page, 'Masqué', ['Sizing : S'], { x: 700, y: 300 });
   const rect = await box(hidden);
   await taggedPostit(page, 'Visible', ['Sizing : M'], { x: 400, y: 300 });
-  await page.mouse.click(1150, 600);
+  await page.mouse.click(950, 600);
 
   await openFilters(page);
   await filtersPanel(page).getByRole('checkbox', { name: 'Filtrer Sizing : M', exact: true }).click();
@@ -307,14 +307,14 @@ test('changer le tag d’un post-it sous filtre ne le fait pas disparaître', as
 
   // Une fois désélectionné, le filtre s'applique normalement.
   await closePicker(page);
-  await page.mouse.click(1150, 600);
+  await page.mouse.click(950, 600);
   await expect(items(page)).toHaveCount(0);
   await expect(filtersPanel(page).getByRole('status')).toHaveText('0 post-it sur 1');
 });
 
 test('un filtre actif reste signalé après la fermeture du panneau', async ({ page }) => {
   await taggedPostit(page, 'Signalé', ['Sizing : S'], { x: 500, y: 300 });
-  await page.mouse.click(1150, 600);
+  await page.mouse.click(950, 600);
   await openFilters(page);
   await filtersPanel(page).getByRole('checkbox', { name: 'Filtrer Sizing : M', exact: true }).click();
   await expect(items(page)).toHaveCount(0);

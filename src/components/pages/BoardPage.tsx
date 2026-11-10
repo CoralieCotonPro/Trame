@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { navigate } from '../../hooks/useRoute';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { closeBoard, openBoard, revealContent } from '../../services/boardSession';
+import { useBoardStore } from '../../stores/boardStore';
 import { useUiStore } from '../../stores/uiStore';
 import { BoardCanvas } from '../board/BoardCanvas';
 import { ElementEditor } from '../board/ElementEditor';
@@ -19,6 +20,7 @@ import { SyncNotice } from '../toolbar/SaveStatus';
 import { Toolbar } from '../toolbar/Toolbar';
 import { TopBar } from '../toolbar/TopBar';
 import { ZoomBar } from '../toolbar/ZoomBar';
+import { FeedbackWidget } from '../feedback/FeedbackWidget';
 
 type LoadState = { boardId: string; status: 'ready' | 'not-found' | 'error' } | null;
 
@@ -36,6 +38,7 @@ function Message({ text }: { text: string }) {
 function LoadedBoard({ boardId }: { boardId: string }) {
   useKeyboardShortcuts();
   const hasViewport = useUiStore((state) => state.viewport.width > 0);
+  const boardName = useBoardStore((state) => state.name);
   const revealed = useRef(false);
 
   // Le cadrage initial attend que la taille de la zone soit connue.
@@ -54,6 +57,8 @@ function LoadedBoard({ boardId }: { boardId: string }) {
       <TopBar />
       <Toolbar />
       <ZoomBar />
+      {/* Au-dessus de la barre de zoom, qui occupe le coin. */}
+      <FeedbackWidget className="absolute right-4 bottom-[5.5rem]" board={boardName} />
       <PropertiesPanel />
       <ContextMenu />
       <FiltersPanel />
