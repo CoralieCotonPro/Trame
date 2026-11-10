@@ -33,7 +33,7 @@ function isInsidePopup(target: EventTarget | null): boolean {
 function modifiesBoard(event: KeyboardEvent): boolean {
   const key = event.key.toLowerCase();
   if (event.ctrlKey || event.metaKey) return ['z', 'y', 'v', 'd'].includes(key);
-  return ['n', 't', 'delete', 'backspace', 'enter'].includes(key) || key.startsWith('arrow');
+  return ['n', 't', 'l', 'delete', 'backspace', 'enter'].includes(key) || key.startsWith('arrow');
 }
 
 function handleCommand(key: string, shift: boolean): boolean {
@@ -72,6 +72,9 @@ function handleSimpleKey(key: string, shift: boolean): boolean {
   switch (key.toLowerCase()) {
     case 'v':
       ui().set({ tool: 'select' });
+      return true;
+    case 'l':
+      ui().set({ tool: 'line' });
       return true;
     case 'h':
       ui().set({ tool: 'hand' });

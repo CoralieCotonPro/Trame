@@ -34,6 +34,8 @@ Un export contient tout le tableau, dans un fichier lisible et versionné.
 | `style.level` d'un texte | `h1`, `h2`, `h3`, `body`, `small` |
 | `style.align` d'un texte | `left`, `center`, `right` |
 | `tags` | Par identifiant de catégorie : l'identifiant d'une valeur de cette catégorie |
+| Trait (`type: "line"`) | `x`, `y`, `width`, `height` : rectangle englobant ; `style.start` : coin de départ (`tl`, `tr`, `bl`, `br`), le trait finit au coin opposé ; `style.thickness` : `thin` ou `thick` ; `style.arrow` : `none` ou `end` ; `content` vide |
+| Liens | Dans `body` ou `text`, notés `[mots](https://adresse)`. Seules les adresses `http` et `https` deviennent des liens. |
 
 **Limites :** 2000 éléments, 50 catégories, 500 valeurs, 5000 caractères par texte, 10 Mo par fichier.
 

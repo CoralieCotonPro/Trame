@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { Group, Layer, Rect as KonvaRect, Stage } from 'react-konva';
+import { Group, Layer, Line as KonvaLine, Rect as KonvaRect, Stage } from 'react-konva';
 import { useBoardPointer } from '../../hooks/useBoardPointer';
 import { useElementSize } from '../../hooks/useElementSize';
 import { visibleBoardRect } from '../../lib/camera';
-import { handlePosition, handlesFor, rectsIntersect, sortByZ } from '../../lib/geometry';
+import { elementHandles, rectsIntersect, sortByZ } from '../../lib/geometry';
+import { lineEndpoints } from '../../lib/line';
+import { INK } from '../../lib/palette';
 import { displayRect } from '../../lib/layout';
 import { registerBoardStage } from '../../lib/boardStage';
 import { isShown } from '../../lib/tags';
@@ -11,8 +13,8 @@ import { useBoardStore } from '../../stores/boardStore';
 import { usePresenceStore } from '../../stores/presenceStore';
 import { useTagStore } from '../../stores/tagStore';
 import { useUiStore } from '../../stores/uiStore';
-import type { BoardElement, Camera } from '../../types/board';
-import { ElementView } from '../elements/ElementView';
+import type { BoardElement, Camera, LineCorner, Rect } from '../../types/board';
+import { ElementView, LINE_WIDTHS } from '../elements/ElementView';
 
 const ACCENT = '#000091';
 const GRID_SPACING = 24;
@@ -28,6 +30,18 @@ function gridStyle(camera: Camera): React.CSSProperties {
   };
 }
 
+/** Élément tel qu'affiché pendant un redimensionnement ou le déplacement d'une extrémité. */
+function withPreview(
+  element: BoardElement,
+  preview: { id: string; rect: Rect; start?: LineCorner } | null,
+): BoardElement {
+  if (preview?.id !== element.id) return element;
+  const moved = { ...element, ...preview.rect };
+  return element.type === 'line' && preview.start
+    ? ({ ...moved, style: { ...element.style, start: preview.start } } as BoardElement)
+    : (moved as BoardElement);
+}
+
 function SelectionOverlay({ elements }: { elements: Record<string, BoardElement> }) {
   const zoom = useUiStore((state) => state.camera.zoom);
   const selectedIds = useUiStore((state) => state.selectedIds);
@@ -35,6 +49,7 @@ function SelectionOverlay({ elements }: { elements: Record<string, BoardElement>
   const dragDelta = useUiStore((state) => state.dragDelta);
   const resizePreview = useUiStore((state) => state.resizePreview);
   const marquee = useUiStore((state) => state.marquee);
+  const lineDraft = useUiStore((state) => state.lineDraft);
 
   const selected = [...selectedIds].flatMap((id) => elements[id] ?? []);
   const single = selected.length === 1 && !editingId && !dragDelta ? selected[0] : undefined;
@@ -43,13 +58,24 @@ function SelectionOverlay({ elements }: { elements: Record<string, BoardElement>
   return (
     <Layer listening={false}>
       <Group x={dragDelta?.x ?? 0} y={dragDelta?.y ?? 0}>
-        {selected.map((element) => {
-          const rect =
-            resizePreview?.id === element.id ? resizePreview.rect : displayRect(element);
+        {selected.map((raw) => {
+          const element = withPreview(raw, resizePreview);
+          if (element.type === 'line') {
+            const { start, end } = lineEndpoints(element, element.style.start);
+            return (
+              <KonvaLine
+                key={element.id}
+                points={[start.x, start.y, end.x, end.y]}
+                stroke="rgba(0, 0, 145, 0.3)"
+                strokeWidth={LINE_WIDTHS[element.style.thickness] + 8 / zoom}
+                lineCap="round"
+              />
+            );
+          }
           return (
             <KonvaRect
               key={element.id}
-              {...rect}
+              {...displayRect(element)}
               stroke={ACCENT}
               strokeWidth={1.5}
               strokeScaleEnabled={false}
@@ -59,24 +85,31 @@ function SelectionOverlay({ elements }: { elements: Record<string, BoardElement>
         })}
       </Group>
       {single &&
-        handlesFor(single.type).map((handle) => {
-          const rect = resizePreview?.id === single.id ? resizePreview.rect : displayRect(single);
-          const position = handlePosition(rect, handle);
-          return (
+        (() => {
+          const element = withPreview(single, resizePreview);
+          return elementHandles(element, displayRect(element)).map(({ handle, point }) => (
             <KonvaRect
               key={handle}
-              x={position.x - handleSize / 2}
-              y={position.y - handleSize / 2}
+              x={point.x - handleSize / 2}
+              y={point.y - handleSize / 2}
               width={handleSize}
               height={handleSize}
-              cornerRadius={2 / zoom}
+              cornerRadius={element.type === 'line' ? handleSize / 2 : 2 / zoom}
               fill="#ffffff"
               stroke={ACCENT}
               strokeWidth={1.5}
               strokeScaleEnabled={false}
             />
-          );
-        })}
+          ));
+        })()}
+      {lineDraft && (
+        <KonvaLine
+          points={[lineDraft.from.x, lineDraft.from.y, lineDraft.to.x, lineDraft.to.y]}
+          stroke={INK}
+          strokeWidth={LINE_WIDTHS.thin}
+          lineCap="round"
+        />
+      )}
       {marquee && (
         <KonvaRect
           {...marquee}
@@ -145,8 +178,7 @@ export function BoardCanvas() {
   );
   const moving = sorted.filter(isMoving);
 
-  const previewed = (element: BoardElement): BoardElement =>
-    resizePreview?.id === element.id ? { ...element, ...resizePreview.rect } : element;
+  const previewed = (element: BoardElement): BoardElement => withPreview(element, resizePreview);
 
   return (
     <div
@@ -157,7 +189,7 @@ export function BoardCanvas() {
       className="absolute inset-0 touch-none outline-none"
       style={{
         ...(gridVisible ? gridStyle(camera) : undefined),
-        cursor: tool === 'hand' || spaceHeld ? 'grab' : undefined,
+        cursor: tool === 'hand' || spaceHeld ? 'grab' : tool === 'line' ? 'crosshair' : undefined,
       }}
       tabIndex={0}
       role="application"

@@ -35,6 +35,8 @@ Ouvrez ensuite l'adresse affichée, en général <http://localhost:5173>.
 | Action | Raccourci |
 | --- | --- |
 | Nouveau post-it / nouveau texte | `N` / `T` |
+| Tracer un trait | `L` puis glisser (avec `Shift` : horizontal, vertical ou 45°) |
+| Lien sur des mots | Sélectionner les mots pendant l'édition, puis `Ctrl/Cmd+K` |
 | Outil sélection / main | `V` / `H` |
 | Déplacer le tableau | `Espace` + glisser, outil Main, ou deux doigts sur le trackpad |
 | Sélection rectangulaire | Glisser sur le vide (avec `Shift` : ajoute à la sélection) |

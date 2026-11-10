@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import type { BoardFile } from '../lib/boardFile';
-import type { Camera, Point, Rect, TagFilters } from '../types/board';
+import type { Camera, LineCorner, Point, Rect, TagFilters } from '../types/board';
 
-export type Tool = 'select' | 'hand';
+export type Tool = 'select' | 'hand' | 'line';
 
 export interface ContextMenuState {
   x: number;
@@ -21,7 +21,11 @@ interface UiState {
   spaceHeld: boolean;
   cursor: Point | null;
   dragDelta: Point | null;
-  resizePreview: { id: string; rect: Rect } | null;
+  resizePreview: { id: string; rect: Rect; start?: LineCorner } | null;
+  /** Trait en cours de tracé. */
+  lineDraft: { from: Point; to: Point } | null;
+  /** Mots sélectionnés dans un texte, à transformer en lien. */
+  linkRequest: { elementId: string; field: string; value: string; start: number; end: number } | null;
   marquee: Rect | null;
   contextMenu: ContextMenuState | null;
   tagPicker: (ContextMenuState & { focusCategoryId: string | null }) | null;
@@ -49,6 +53,8 @@ export const useUiStore = create<UiState>((set) => ({
   cursor: null,
   dragDelta: null,
   resizePreview: null,
+  lineDraft: null,
+  linkRequest: null,
   marquee: null,
   contextMenu: null,
   tagPicker: null,

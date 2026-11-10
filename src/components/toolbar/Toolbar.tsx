@@ -1,4 +1,4 @@
-import { Hand, ListFilter, MousePointer2, StickyNote, Type } from 'lucide-react';
+import { Hand, ListFilter, MousePointer2, Slash, StickyNote, Type } from 'lucide-react';
 import { activeFilterCount } from '../../lib/tags';
 import { addPostit, addText } from '../../stores/actions';
 import { useUiStore } from '../../stores/uiStore';
@@ -35,6 +35,13 @@ export function Toolbar() {
           <div className="mx-2 my-1 h-px bg-line" />
           <IconButton icon={Type} label="Ajouter un texte" shortcut="T" onClick={addText} />
           <IconButton icon={StickyNote} label="Ajouter un post-it" shortcut="N" onClick={() => addPostit()} />
+          <IconButton
+            icon={Slash}
+            label="Tracer un trait"
+            shortcut="L"
+            active={tool === 'line'}
+            onClick={() => setUi({ tool: tool === 'line' ? 'select' : 'line' })}
+          />
         </>
       )}
       <div className="mx-2 my-1 h-px bg-line" />

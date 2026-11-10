@@ -1,6 +1,8 @@
 import type { BoardElement, Point, Rect } from '../types/board';
 
-export type Handle = 'nw' | 'ne' | 'sw' | 'se' | 'w' | 'e';
+import { distanceToSegment, lineEndpoints } from './line';
+
+export type Handle = 'nw' | 'ne' | 'sw' | 'se' | 'w' | 'e' | 'start' | 'end';
 
 export function containsPoint(rect: Rect, point: Point): boolean {
   return (
@@ -47,16 +49,23 @@ export function sortByZ<T extends Pick<BoardElement, 'id' | 'zIndex'>>(elements:
   return [...elements].sort((a, b) => a.zIndex - b.zIndex || a.id.localeCompare(b.id));
 }
 
-/** Élément le plus haut sous le point donné. */
+function touches(element: BoardElement, rect: Rect, point: Point, tolerance: number): boolean {
+  if (element.type !== 'line') return containsPoint(rect, point);
+  const { start, end } = lineEndpoints(rect, element.style.start);
+  return distanceToSegment(point, start, end) <= Math.max(tolerance, 1);
+}
+
+/** Élément le plus haut sous le point donné ; un trait se saisit à `tolerance` près. */
 export function hitTest(
   elements: BoardElement[],
   point: Point,
   getRect: (element: BoardElement) => Rect,
+  tolerance = 0,
 ): BoardElement | null {
   const sorted = sortByZ(elements);
   for (let i = sorted.length - 1; i >= 0; i -= 1) {
     const element = sorted[i] as BoardElement;
-    if (containsPoint(getRect(element), point)) return element;
+    if (touches(element, getRect(element), point, tolerance)) return element;
   }
   return null;
 }
@@ -91,7 +100,23 @@ export function recentCentroid(
 }
 
 export function handlesFor(type: BoardElement['type']): Handle[] {
-  return type === 'postit' ? ['nw', 'ne', 'sw', 'se'] : ['w', 'e'];
+  if (type === 'postit') return ['nw', 'ne', 'sw', 'se'];
+  return type === 'text' ? ['w', 'e'] : [];
+}
+
+/** Poignées d'un élément : coins ou côtés pour un bloc, extrémités pour un trait. */
+export function elementHandles(
+  element: BoardElement,
+  rect: Rect,
+): { handle: Handle; point: Point }[] {
+  if (element.type === 'line') {
+    const { start, end } = lineEndpoints(rect, element.style.start);
+    return [
+      { handle: 'start', point: start },
+      { handle: 'end', point: end },
+    ];
+  }
+  return handlesFor(element.type).map((handle) => ({ handle, point: handlePosition(rect, handle) }));
 }
 
 export function handlePosition(rect: Rect, handle: Handle): Point {

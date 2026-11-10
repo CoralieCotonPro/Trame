@@ -79,7 +79,7 @@ function ContextMenuContent({ x, y }: { x: number; y: number }) {
         top: Math.min(y, window.innerHeight - MENU_HEIGHT - 8),
       }}
     >
-      {selected.length === 1 && only && (
+      {selected.length === 1 && only && only.type !== 'line' && (
         <Item label="Modifier" onClick={() => startEditing(only.id)} />
       )}
       <Item label="Dupliquer" onClick={duplicateSelection} />

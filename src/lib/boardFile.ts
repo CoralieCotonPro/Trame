@@ -41,6 +41,9 @@ export function buildBoardFile(
     elements: elements.map((element): FileElement => {
       const { id, x, y, width, height, zIndex } = element;
       const base = { id, x, y, width, height, zIndex };
+      if (element.type === 'line') {
+        return { ...base, type: 'line', content: {}, style: element.style };
+      }
       if (element.type === 'text') {
         return { ...base, type: 'text', content: element.content, style: element.style };
       }
@@ -128,6 +131,9 @@ function parseCatalog(root: Record<string, unknown>) {
 
 const POSTIT_IDS = new Set<string>(POSTIT_COLORS.map((color) => color.id));
 const ALIGNS = new Set<string>(['left', 'center', 'right']);
+const THICKNESSES = new Set<string>(['thin', 'thick']);
+const ARROWS = new Set<string>(['none', 'end']);
+const CORNERS = new Set<string>(['tl', 'tr', 'bl', 'br']);
 
 function parseElement(raw: unknown, values: TagValue[]): FileElement {
   const item = asRecord(raw, 'Un élément');
@@ -175,6 +181,18 @@ function parseElement(raw: unknown, values: TagValue[]): FileElement {
       content: { text: asText(content.text, 'Un texte', 0, MAX_TEXT) },
       style: { level, align, color },
     } as FileElement;
+  }
+
+  if (item.type === 'line') {
+    const color = asText(style.color, 'La couleur d’un trait', 7, 7);
+    if (!isHexColor(color)) fail(`La couleur « ${color} » est invalide.`);
+    const thickness = asText(style.thickness, 'L’épaisseur d’un trait', 1, 10);
+    const arrow = asText(style.arrow, 'L’extrémité d’un trait', 1, 10);
+    const start = asText(style.start, 'Le départ d’un trait', 2, 2);
+    if (!THICKNESSES.has(thickness) || !ARROWS.has(arrow) || !CORNERS.has(start)) {
+      fail('Le style d’un trait est invalide.');
+    }
+    return { ...base, type: 'line', content: {}, style: { color, thickness, arrow, start } } as FileElement;
   }
 
   return fail('Un élément est d’un type inconnu.');

@@ -1,16 +1,24 @@
 import { useEffect, type RefObject } from 'react';
 import { screenToBoard, zoomAt } from '../lib/camera';
 import {
-  handlePosition,
-  handlesFor,
+  elementHandles,
   hitTest,
   rectFromPoints,
   rectsIntersect,
   resizeRect,
   type Handle,
 } from '../lib/geometry';
-import { badgeAt, contentHeight, displayRect, MIN_POSTIT, MIN_TEXT_WIDTH } from '../lib/layout';
 import {
+  badgeAt,
+  contentHeight,
+  displayRect,
+  linkAt,
+  MIN_POSTIT,
+  MIN_TEXT_WIDTH,
+} from '../lib/layout';
+import { constrainAngle, lineEndpoints, lineFromPoints } from '../lib/line';
+import {
+  addLine,
   addPostit,
   moveSelection,
   openTagPicker,
@@ -24,6 +32,8 @@ import type { BoardElement, Point, Rect } from '../types/board';
 
 const DRAG_THRESHOLD = 3;
 const HANDLE_HIT_RADIUS = 10;
+const LINE_HIT_TOLERANCE = 6;
+const MIN_LINE_LENGTH = 4;
 
 const CURSORS: Record<Handle, string> = {
   nw: 'nwse-resize',
@@ -32,7 +42,14 @@ const CURSORS: Record<Handle, string> = {
   sw: 'nesw-resize',
   w: 'ew-resize',
   e: 'ew-resize',
+  start: 'crosshair',
+  end: 'crosshair',
 };
+
+/** Les liens s'ouvrent dans un nouvel onglet, sans accès à cette page. */
+function openLink(href: string) {
+  window.open(href, '_blank', 'noopener,noreferrer');
+}
 
 type Gesture =
   | { kind: 'pan'; start: Point; last: Point; moved: boolean }
@@ -43,7 +60,10 @@ type Gesture =
       moved: boolean;
       collapseTo: string | null;
       badge: { elementId: string; categoryId: string } | null;
+      link: string | null;
     }
+  | { kind: 'draw'; from: Point }
+  | { kind: 'endpoint'; element: BoardElement; fixed: Point; which: 'start' | 'end' }
   | { kind: 'resize'; element: BoardElement; rect: Rect; handle: Handle; start: Point }
   | { kind: 'marquee'; start: Point; base: Set<string>; moved: boolean; additive: boolean };
 
@@ -60,10 +80,8 @@ function singleSelected(): BoardElement | null {
 function handleAt(point: Point): { element: BoardElement; handle: Handle } | null {
   const element = singleSelected();
   if (!element || ui().role === 'viewer') return null;
-  const rect = displayRect(element);
   const radius = HANDLE_HIT_RADIUS / ui().camera.zoom;
-  for (const handle of handlesFor(element.type)) {
-    const position = handlePosition(rect, handle);
+  for (const { handle, point: position } of elementHandles(element, displayRect(element))) {
     if (Math.abs(point.x - position.x) <= radius && Math.abs(point.y - position.y) <= radius) {
       return { element, handle };
     }
@@ -95,7 +113,8 @@ export function useBoardPointer(containerRef: RefObject<HTMLDivElement | null>) 
       return { x: event.clientX - bounds.left, y: event.clientY - bounds.top };
     };
     const boardPoint = (event: MouseEvent) => screenToBoard(ui().camera, localPoint(event));
-    const elementAt = (point: Point) => hitTest(elements(), point, displayRect);
+    const elementAt = (point: Point) =>
+      hitTest(elements(), point, displayRect, LINE_HIT_TOLERANCE / ui().camera.zoom);
 
     const onPointerDown = (event: PointerEvent) => {
       ui().set({ contextMenu: null });
@@ -111,7 +130,23 @@ export function useBoardPointer(containerRef: RefObject<HTMLDivElement | null>) 
       }
 
       const point = boardPoint(event);
+      if (tool === 'line' && event.button === 0) {
+        gesture = { kind: 'draw', from: point };
+        return;
+      }
+
       const resize = handleAt(point);
+      if (resize?.element.type === 'line') {
+        const ends = lineEndpoints(displayRect(resize.element), resize.element.style.start);
+        const which = resize.handle === 'start' ? 'start' : 'end';
+        gesture = {
+          kind: 'endpoint',
+          element: resize.element,
+          which,
+          fixed: which === 'start' ? ends.end : ends.start,
+        };
+        return;
+      }
       if (resize) {
         gesture = { kind: 'resize', ...resize, rect: displayRect(resize.element), start: point };
         return;
@@ -128,7 +163,11 @@ export function useBoardPointer(containerRef: RefObject<HTMLDivElement | null>) 
         } else if (!selectedIds.has(hit.id)) {
           ui().select([hit.id]);
         }
-        if (ui().role === 'viewer') return;
+        const link = !event.shiftKey ? linkAt(hit, point) : null;
+        if (ui().role === 'viewer') {
+          if (link) openLink(link.href);
+          return;
+        }
         const collapseTo = !event.shiftKey && selectedIds.has(hit.id) ? hit.id : null;
         const badge = !event.shiftKey && hit.type === 'postit' ? badgeAt(hit, point) : null;
         gesture = {
@@ -138,6 +177,7 @@ export function useBoardPointer(containerRef: RefObject<HTMLDivElement | null>) 
           moved: false,
           collapseTo,
           badge: badge && { elementId: hit.id, categoryId: badge.categoryId },
+          link: link?.href ?? null,
         };
         return;
       }
@@ -161,10 +201,12 @@ export function useBoardPointer(containerRef: RefObject<HTMLDivElement | null>) 
       const hit = tool === 'select' && !spaceHeld ? handleAt(point) : null;
       if (hit) container.style.cursor = CURSORS[hit.handle];
       else if (tool === 'hand' || spaceHeld) container.style.cursor = 'grab';
+      else if (tool === 'line') container.style.cursor = 'crosshair';
       else {
         const element = elementAt(point);
-        const overBadge = element?.type === 'postit' && badgeAt(element, point);
-        container.style.cursor = overBadge ? 'pointer' : element ? 'move' : 'default';
+        const clickable =
+          element && ((element.type === 'postit' && badgeAt(element, point)) || linkAt(element, point));
+        container.style.cursor = clickable ? 'pointer' : element ? 'move' : 'default';
       }
     };
 
@@ -215,6 +257,20 @@ export function useBoardPointer(containerRef: RefObject<HTMLDivElement | null>) 
           gesture.moved = true;
           updateMarquee(gesture.start, point, gesture.base);
           break;
+        case 'draw': {
+          const to = event.shiftKey ? constrainAngle(gesture.from, point) : point;
+          ui().set({ lineDraft: { from: gesture.from, to } });
+          break;
+        }
+        case 'endpoint': {
+          const moving = event.shiftKey ? constrainAngle(gesture.fixed, point) : point;
+          const { start, ...rect } =
+            gesture.which === 'end'
+              ? lineFromPoints(gesture.fixed, moving)
+              : lineFromPoints(moving, gesture.fixed);
+          ui().set({ resizePreview: { id: gesture.element.id, rect, start } });
+          break;
+        }
       }
     };
 
@@ -234,6 +290,7 @@ export function useBoardPointer(containerRef: RefObject<HTMLDivElement | null>) 
           endDrag();
           ui().set({ dragDelta: null });
           if (delta && (delta.x !== 0 || delta.y !== 0)) moveSelection(delta);
+          else if (!finished.moved && finished.link) openLink(finished.link);
           else if (!finished.moved && finished.badge) {
             ui().select([finished.badge.elementId]);
             openTagPicker(event.clientX, event.clientY, finished.badge.categoryId);
@@ -259,6 +316,23 @@ export function useBoardPointer(containerRef: RefObject<HTMLDivElement | null>) 
           ui().set({ marquee: null });
           if (!finished.moved && !finished.additive) ui().select([]);
           break;
+        case 'draw': {
+          const draft = ui().lineDraft;
+          ui().set({ lineDraft: null, tool: 'select' });
+          const length = draft ? Math.hypot(draft.to.x - draft.from.x, draft.to.y - draft.from.y) : 0;
+          if (draft && length * ui().camera.zoom >= MIN_LINE_LENGTH) addLine(draft.from, draft.to);
+          break;
+        }
+        case 'endpoint': {
+          const preview = ui().resizePreview;
+          ui().set({ resizePreview: null });
+          if (preview?.start) {
+            useBoardStore.getState().patchElements({
+              [preview.id]: { ...preview.rect, style: { start: preview.start } },
+            });
+          }
+          break;
+        }
       }
       updateHoverCursor(boardPoint(event));
     };
@@ -273,6 +347,7 @@ export function useBoardPointer(containerRef: RefObject<HTMLDivElement | null>) 
       if (ui().tool !== 'select' || ui().spaceHeld || ui().role === 'viewer') return;
       const point = boardPoint(event);
       const hit = elementAt(point);
+      if (hit?.type === 'line') return;
       if (hit) startEditing(hit.id);
       else if (ui().doubleClickCreates) addPostit(point);
     };

@@ -1,5 +1,6 @@
 import { fitCamera, screenToBoard, visibleBoardRect, zoomAt } from '../lib/camera';
-import { cloneElement, createPostit, createText } from '../lib/elements';
+import { cloneElement, createLine, createPostit, createText } from '../lib/elements';
+import { lineFromPoints } from '../lib/line';
 import { boundsOf, recentCentroid, sortByZ } from '../lib/geometry';
 import { displayRect } from '../lib/layout';
 import { isShown, matchesFilters, valuesOf } from '../lib/tags';
@@ -87,7 +88,17 @@ export function addText() {
 }
 
 export function startEditing(id: string) {
+  const element = board().elements[id];
+  // Un trait n'a pas de texte à modifier.
+  if (!element || element.type === 'line') return;
   ui().set({ selectedIds: new Set([id]), editingId: id, contextMenu: null });
+}
+
+export function addLine(from: Point, to: Point) {
+  const { start, ...rect } = lineFromPoints(from, to);
+  const element = createLine(rect, start, topZ() + 1);
+  board().addElements([element]);
+  ui().select([element.id]);
 }
 
 export function finishEditing(id: string, patch: ElementPatch | null) {

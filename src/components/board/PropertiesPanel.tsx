@@ -3,7 +3,10 @@ import {
   AlignLeft,
   AlignRight,
   BringToFront,
+  ArrowRight,
   Copy,
+  Link,
+  Minus,
   SendToBack,
   Trash2,
 } from 'lucide-react';
@@ -20,10 +23,18 @@ import {
   patchSelection,
   sendToBack,
 } from '../../stores/actions';
+import { requestLink } from '../../lib/linkRequest';
 import { useBoardStore } from '../../stores/boardStore';
 import { useTagStore } from '../../stores/tagStore';
 import { useUiStore } from '../../stores/uiStore';
-import type { BoardElement, PostitElement, TextAlign, TextElement, TextLevel } from '../../types/board';
+import type {
+  BoardElement,
+  LineElement,
+  PostitElement,
+  TextAlign,
+  TextElement,
+  TextLevel,
+} from '../../types/board';
 import { IconButton } from '../toolbar/IconButton';
 
 const PANEL_GAP = 12;
@@ -170,6 +181,60 @@ function isText(element: BoardElement): element is TextElement {
   return element.type === 'text';
 }
 
+function isLine(element: BoardElement): element is LineElement {
+  return element.type === 'line';
+}
+
+function LineControls({ elements }: { elements: LineElement[] }) {
+  const first = elements[0];
+  return (
+    <>
+      <div className="flex items-center gap-1" role="group" aria-label="Couleur du trait">
+        {TEXT_COLORS.map((color) => (
+          <ColorSwatch
+            key={color.id}
+            label={color.label}
+            color={color.id}
+            selected={elements.every((element) => element.style.color === color.id)}
+            onClick={() => patchSelection({ style: { color: color.id } })}
+          />
+        ))}
+      </div>
+      <Divider />
+      <div className="flex items-center gap-0.5" role="group" aria-label="Épaisseur du trait">
+        {(['thin', 'thick'] as const).map((thickness) => (
+          <button
+            key={thickness}
+            type="button"
+            aria-pressed={first?.style.thickness === thickness}
+            onClick={() => patchSelection({ style: { thickness } })}
+            className="h-8 rounded-md px-2 text-sm hover:bg-paper aria-pressed:bg-accent aria-pressed:text-white"
+          >
+            {thickness === 'thin' ? 'Fin' : 'Épais'}
+          </button>
+        ))}
+      </div>
+      <Divider />
+      <div className="flex items-center" role="group" aria-label="Extrémité du trait">
+        <IconButton
+          icon={Minus}
+          label="Sans flèche"
+          tooltipSide="bottom"
+          active={first?.style.arrow === 'none'}
+          onClick={() => patchSelection({ style: { arrow: 'none' } })}
+        />
+        <IconButton
+          icon={ArrowRight}
+          label="Avec flèche"
+          tooltipSide="bottom"
+          active={first?.style.arrow === 'end'}
+          onClick={() => patchSelection({ style: { arrow: 'end' } })}
+        />
+      </div>
+    </>
+  );
+}
+
 /** Panneau flottant au-dessus de la sélection, ou dessous s'il manque de place. */
 export function PropertiesPanel() {
   const allElements = useBoardStore((state) => state.elements);
@@ -190,7 +255,16 @@ export function PropertiesPanel() {
   const bounds = boundsOf(selected.map(displayRect));
   const postits = selected.filter(isPostit);
   const texts = selected.filter(isText);
-  const kind = postits.length === selected.length ? 'postit' : texts.length === selected.length ? 'text' : 'mixed';
+  const lines = selected.filter(isLine);
+  const kind =
+    postits.length === selected.length
+      ? 'postit'
+      : texts.length === selected.length
+        ? 'text'
+        : lines.length === selected.length
+          ? 'line'
+          : 'mixed';
+  const editing = useUiStore((state) => state.editingId !== null);
   const readOnly = useUiStore((state) => state.role === 'viewer');
   const visible = bounds !== null && !busy && !readOnly;
 
@@ -228,7 +302,17 @@ export function PropertiesPanel() {
     >
       {kind === 'postit' && <PostitControls elements={postits} />}
       {kind === 'text' && <TextControls elements={texts} />}
+      {kind === 'line' && <LineControls elements={lines} />}
       {kind !== 'mixed' && <Divider />}
+      {editing && (
+        <IconButton
+          icon={Link}
+          label="Lien sur les mots sélectionnés"
+          shortcut="Ctrl/Cmd+K"
+          tooltipSide="bottom"
+          onClick={() => requestLink(document.querySelector('textarea[data-field]'))}
+        />
+      )}
       <IconButton icon={Copy} label="Dupliquer" shortcut="Ctrl/Cmd+D" tooltipSide="bottom" onClick={duplicateSelection} />
       <IconButton icon={BringToFront} label="Premier plan" tooltipSide="bottom" onClick={bringToFront} />
       <IconButton icon={SendToBack} label="Arrière-plan" tooltipSide="bottom" onClick={sendToBack} />

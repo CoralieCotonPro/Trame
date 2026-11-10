@@ -28,7 +28,16 @@ export interface TextElement extends ElementBase {
   style: { level: TextLevel; color: string; align: TextAlign };
 }
 
-export type BoardElement = PostitElement | TextElement;
+/** Coin du rectangle englobant où commence le trait ; il finit au coin opposé. */
+export type LineCorner = 'tl' | 'tr' | 'bl' | 'br';
+
+export interface LineElement extends ElementBase {
+  type: 'line';
+  content: Record<string, never>;
+  style: { color: string; thickness: 'thin' | 'thick'; arrow: 'none' | 'end'; start: LineCorner };
+}
+
+export type BoardElement = PostitElement | TextElement | LineElement;
 
 export interface ElementPatch {
   x?: number;
@@ -37,7 +46,10 @@ export interface ElementPatch {
   height?: number;
   zIndex?: number;
   content?: Partial<PostitElement['content']> | Partial<TextElement['content']>;
-  style?: Partial<PostitElement['style']> | Partial<TextElement['style']>;
+  style?:
+    | Partial<PostitElement['style']>
+    | Partial<TextElement['style']>
+    | Partial<LineElement['style']>;
   /** Par catégorie : l'identifiant de la nouvelle valeur, ou `null` pour retirer le tag. */
   tags?: Record<string, string | null>;
 }

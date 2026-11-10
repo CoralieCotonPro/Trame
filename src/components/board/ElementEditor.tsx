@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState, type FocusEvent, type KeyboardEvent } from 'react';
 import { displayRect, layoutPostit, POSTIT_BODY_SIZE, POSTIT_PADDING } from '../../lib/layout';
 import { FONT_FAMILY, LINE_HEIGHT, postitFill, postitInk, TEXT_LEVELS } from '../../lib/palette';
+import { requestLink } from '../../lib/linkRequest';
 import { finishEditing } from '../../stores/actions';
 import { useBoardStore } from '../../stores/boardStore';
 import { useUiStore } from '../../stores/uiStore';
@@ -44,6 +45,11 @@ function useFinish(id: string, buildPatch: () => ElementPatch) {
       if (!event.currentTarget.contains(event.relatedTarget)) finish();
     },
     onKeyDown: (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        requestLink(event.target instanceof HTMLTextAreaElement ? event.target : null);
+        return;
+      }
       if (event.key === 'Escape' || (event.key === 'Enter' && (event.ctrlKey || event.metaKey))) {
         event.preventDefault();
         finish();
@@ -74,6 +80,8 @@ function PostitEditor({ element }: { element: PostitElement }) {
     >
       <textarea
         ref={bodyRef}
+        data-editor-for={element.id}
+        data-field="body"
         rows={1}
         value={body}
         maxLength={MAX_LENGTH}
@@ -115,6 +123,8 @@ function TextEditor({ element }: { element: TextElement }) {
     <div onBlur={onBlur} onKeyDown={onKeyDown} style={{ width: element.width }}>
       <textarea
         ref={ref}
+        data-editor-for={element.id}
+        data-field="text"
         rows={1}
         value={text}
         maxLength={MAX_LENGTH}
@@ -136,6 +146,7 @@ function TextEditor({ element }: { element: TextElement }) {
 }
 
 function renderEditor(element: BoardElement) {
+  if (element.type === 'line') return null;
   return element.type === 'postit' ? (
     <PostitEditor key={element.id} element={element} />
   ) : (

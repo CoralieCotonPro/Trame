@@ -11,6 +11,7 @@ import { RemoteOverlay } from '../collaboration/RemoteOverlay';
 import { ShareDialog } from '../collaboration/ShareDialog';
 import { ContextMenu } from '../dialogs/ContextMenu';
 import { ImportDialog } from '../dialogs/ImportDialog';
+import { LinkDialog } from '../dialogs/LinkDialog';
 import { FiltersPanel } from '../tags/FiltersPanel';
 import { TagManager } from '../tags/TagManager';
 import { TagPicker } from '../tags/TagPicker';
@@ -60,6 +61,7 @@ function LoadedBoard({ boardId }: { boardId: string }) {
       <TagManager />
       <ShareDialog boardId={boardId} />
       <ImportDialog />
+      <LinkDialog />
       <SyncNotice />
       <ElementsA11yList />
     </main>

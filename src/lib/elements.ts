@@ -1,4 +1,4 @@
-import type { BoardElement, Point, PostitElement, TextElement } from '../types/board';
+import type { BoardElement, LineElement, Point, PostitElement, TextElement } from '../types/board';
 import { INK, POSTIT_SIZES } from './palette';
 
 const DEFAULT_POSTIT = POSTIT_SIZES[1];
@@ -41,6 +41,21 @@ export function createText(position: Point, zIndex: number): TextElement {
     height: 24,
     content: { text: '' },
     style: { level: 'body', color: INK, align: 'left' },
+  };
+}
+
+export function createLine(
+  rect: { x: number; y: number; width: number; height: number },
+  start: LineElement['style']['start'],
+  zIndex: number,
+): LineElement {
+  return {
+    ...base(rect, zIndex),
+    type: 'line',
+    width: rect.width,
+    height: rect.height,
+    content: {},
+    style: { color: INK, thickness: 'thin', arrow: 'none', start },
   };
 }
 

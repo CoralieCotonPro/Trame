@@ -11,6 +11,7 @@ import type {
 } from '../types/board';
 import { containsPoint } from './geometry';
 import { FONT_FAMILY, LINE_HEIGHT, TEXT_LEVELS } from './palette';
+import { displayText, parseLinks } from './richText';
 import {
   flowBadges,
   readableTextColor,
@@ -114,7 +115,7 @@ export function layoutPostit(element: PostitElement): PostitLayout {
   if (cached && cached.categories === categories && cached.values === values) return cached.layout;
 
   const innerWidth = Math.max(1, element.width - POSTIT_PADDING * 2);
-  const bodyText = element.content.body || POSTIT_PLACEHOLDER;
+  const bodyText = displayText(element.content.body) || POSTIT_PLACEHOLDER;
   const bodyHeight = measureHeight(bodyText, innerWidth, POSTIT_BODY_SIZE, 'normal');
   const { badges, badgesHeight } = layoutBadges(element, innerWidth);
   const layout = {
@@ -158,7 +159,7 @@ export function textHeight(element: TextElement): number {
   if (cached !== undefined) return cached;
   const level = TEXT_LEVELS[element.style.level];
   const height = measureHeight(
-    element.content.text || TEXT_PLACEHOLDER,
+    displayText(element.content.text) || TEXT_PLACEHOLDER,
     element.width,
     level.fontSize,
     level.fontStyle,
@@ -169,7 +170,8 @@ export function textHeight(element: TextElement): number {
 
 /** Hauteur minimale pour que le contenu ne soit jamais coupé. */
 export function contentHeight(element: BoardElement): number {
-  return element.type === 'postit' ? layoutPostit(element).contentHeight : textHeight(element);
+  if (element.type === 'postit') return layoutPostit(element).contentHeight;
+  return element.type === 'text' ? textHeight(element) : element.height;
 }
 
 /** Rectangle réellement occupé sur le tableau. */
@@ -179,6 +181,116 @@ export function displayRect(element: BoardElement): Rect {
     y: element.y,
     width: element.width,
     height:
-      element.type === 'postit' ? Math.max(element.height, contentHeight(element)) : textHeight(element),
+      element.type === 'postit' ? Math.max(element.height, contentHeight(element)) : contentHeight(element),
   };
+}
+
+export const LINK_COLOR = '#000091';
+
+/** Morceau de lien sur une ligne, en coordonnées relatives au début du texte. */
+export interface LinkSegment {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  text: string;
+  href: string;
+  font: string;
+}
+
+let linker: Konva.Text | null = null;
+
+/**
+ * Position des mots liés une fois le texte coupé en lignes. On reprend le découpage
+ * de Konva pour tomber exactement sur les mots dessinés.
+ */
+function linkSegments(
+  raw: string,
+  width: number,
+  fontSize: number,
+  fontStyle: string,
+  align: string,
+): LinkSegment[] {
+  const { display, links } = parseLinks(raw);
+  if (links.length === 0) return [];
+  linker ??= new Konva.Text({ fontFamily: FONT_FAMILY, lineHeight: LINE_HEIGHT, wrap: 'word' });
+  linker.setAttrs({ text: display, width, fontSize, fontStyle, align });
+  const lines = (linker as unknown as { textArr: { text: string; width: number }[] }).textArr;
+  const font = (linker as unknown as { _getContextFont: () => string })._getContextFont();
+  const lineHeight = fontSize * LINE_HEIGHT;
+  const measure = (text: string) => (linker as Konva.Text).measureSize(text).width;
+
+  const segments: LinkSegment[] = [];
+  let cursor = 0;
+  lines.forEach((line, index) => {
+    if (!line.text) return;
+    const start = display.indexOf(line.text, cursor);
+    if (start < 0) return;
+    const end = start + line.text.length;
+    cursor = end;
+    const lineX =
+      align === 'center' ? (width - line.width) / 2 : align === 'right' ? width - line.width : 0;
+    for (const link of links) {
+      const from = Math.max(link.start, start);
+      const to = Math.min(link.end, end);
+      if (from >= to) continue;
+      const text = display.slice(from, to);
+      segments.push({
+        x: lineX + measure(display.slice(start, from)),
+        y: index * lineHeight,
+        width: measure(text),
+        height: lineHeight,
+        text,
+        href: link.href,
+        font,
+      });
+    }
+  });
+  return segments;
+}
+
+const linkCache = new WeakMap<BoardElement, LinkSegment[]>();
+
+/** Liens d'un post-it ou d'un texte, et point d'origine de son texte. */
+export function elementLinks(element: BoardElement): { origin: Point; segments: LinkSegment[] } {
+  if (element.type === 'line') return { origin: element, segments: [] };
+  let segments = linkCache.get(element);
+  if (!segments) {
+    if (element.type === 'postit') {
+      segments = linkSegments(
+        element.content.body,
+        layoutPostit(element).innerWidth,
+        POSTIT_BODY_SIZE,
+        'normal',
+        'left',
+      );
+    } else {
+      const level = TEXT_LEVELS[element.style.level];
+      segments = linkSegments(
+        element.content.text,
+        element.width,
+        level.fontSize,
+        level.fontStyle,
+        element.style.align,
+      );
+    }
+    linkCache.set(element, segments);
+  }
+  const origin =
+    element.type === 'postit'
+      ? { x: element.x + POSTIT_PADDING, y: element.y + POSTIT_PADDING }
+      : { x: element.x, y: element.y };
+  return { origin, segments };
+}
+
+export function linkAt(element: BoardElement, point: Point): LinkSegment | null {
+  const { origin, segments } = elementLinks(element);
+  return (
+    segments.find((segment) =>
+      containsPoint(
+        { x: origin.x + segment.x, y: origin.y + segment.y, width: segment.width, height: segment.height },
+        point,
+      ),
+    ) ?? null
+  );
 }

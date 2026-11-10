@@ -27,6 +27,8 @@
 | Liens de partage édition / lecture, expiration, révocation | Oui | Oui | Fonctionne en local |
 | Invités sans compte | Oui | Oui | Fonctionne en local |
 | Droits appliqués par la base, y compris sur le temps réel | Oui | Oui | Vérifié par des tentatives de contournement |
+| Traits et flèches : tracé, extrémités, épaisseur, couleur | Oui | Oui | Fonctionne |
+| Liens sur des mots, ouverts dans un nouvel onglet | Oui | Oui | Fonctionne |
 | Export JSON versionné, import validé avec confirmation | Oui | Oui | Fonctionne |
 | Export PNG cadré, éléments hors écran compris | Oui | Oui | Fonctionne |
 | Accessibilité : clavier, libellés, contrastes | Partielle | Partielle | Voir les limites |
