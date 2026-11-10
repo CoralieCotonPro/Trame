@@ -33,8 +33,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -68,8 +68,8 @@ jobs:
       NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
       NETLIFY_SITE_ID: ${{ vars.NETLIFY_SITE_ID }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -96,14 +96,17 @@ jobs:
       NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
       NETLIFY_SITE_ID: ${{ vars.NETLIFY_SITE_ID }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
       # Avant le site : les nouveaux écrans peuvent avoir besoin des nouvelles tables.
+      # Les machines GitHub n'ont pas d'IPv6 : la liaison passe par le pooler Supabase (IPv4).
       - name: Mettre à jour la base Supabase
-        run: npx supabase db push --remote="${{ vars.SUPABASE_PROJECT_ID }}" --yes
+        run: |
+          npx supabase link "${{ vars.SUPABASE_PROJECT_ID }}" --yes
+          npx supabase db push --remote --yes
       - name: Publier le site
         run: npx --yes "$NETLIFY_CLI" deploy --build --prod
