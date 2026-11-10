@@ -12,12 +12,12 @@ import { isShown } from '../../lib/tags';
 import { useBoardStore } from '../../stores/boardStore';
 import { usePresenceStore } from '../../stores/presenceStore';
 import { useTagStore } from '../../stores/tagStore';
+import { GRID_SPACING } from '../../lib/snap';
 import { useUiStore } from '../../stores/uiStore';
 import type { BoardElement, Camera, LineCorner, Rect } from '../../types/board';
 import { ElementView, LINE_WIDTHS } from '../elements/ElementView';
 
 const ACCENT = '#000091';
-const GRID_SPACING = 24;
 const CULLING_MARGIN = 200;
 
 function gridStyle(camera: Camera): React.CSSProperties {

@@ -5,6 +5,7 @@
 | Fonctionnalité | Implémentée | Testée | État |
 | --- | :-: | :-: | --- |
 | Tableau infini, grille optionnelle | Oui | Oui | Fonctionne |
+| Aimantation à la grille (active par défaut, Alt pour la suspendre) | Oui | Oui | Fonctionne |
 | Zoom centré sur le curseur (10 % à 400 %), boutons, ajustement | Oui | Oui | Fonctionne |
 | Déplacement du tableau (Espace, Main, trackpad) | Oui | Oui | Fonctionne |
 | Sélection, multiple, rectangulaire, déplacement groupé | Oui | Oui | Fonctionne |

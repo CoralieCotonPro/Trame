@@ -17,6 +17,8 @@ interface UiState {
   selectedIds: ReadonlySet<string>;
   editingId: string | null;
   gridVisible: boolean;
+  /** Les éléments déplacés, redimensionnés ou créés s'alignent sur la grille. */
+  snapToGrid: boolean;
   doubleClickCreates: boolean;
   spaceHeld: boolean;
   cursor: Point | null;
@@ -48,6 +50,7 @@ export const useUiStore = create<UiState>((set) => ({
   selectedIds: new Set(),
   editingId: null,
   gridVisible: true,
+  snapToGrid: true,
   doubleClickCreates: true,
   spaceHeld: false,
   cursor: null,

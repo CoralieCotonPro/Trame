@@ -60,6 +60,7 @@ function MainMenu() {
   const rootRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const gridVisible = useUiStore((state) => state.gridVisible);
+  const snapToGrid = useUiStore((state) => state.snapToGrid);
   const doubleClickCreates = useUiStore((state) => state.doubleClickCreates);
   const role = useUiStore((state) => state.role);
   const setUi = useUiStore((state) => state.set);
@@ -88,6 +89,11 @@ function MainMenu() {
             label="Afficher la grille"
             checked={gridVisible}
             onChange={(checked) => setUi({ gridVisible: checked })}
+          />
+          <Toggle
+            label="Aimanter à la grille"
+            checked={snapToGrid}
+            onChange={(checked) => setUi({ snapToGrid: checked })}
           />
           <Toggle
             label="Double-clic : créer un post-it"

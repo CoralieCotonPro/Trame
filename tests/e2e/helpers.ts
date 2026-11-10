@@ -70,16 +70,23 @@ export async function center(page: Page, item: Locator) {
   return toScreen(page, { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 });
 }
 
+/**
+ * Glisser d'un point à un autre. Par défaut, Alt est maintenu : l'aimantation à la grille est
+ * suspendue et les positions restent exactes. `{ snap: true }` laisse l'aimantation agir.
+ */
 export async function drag(
   page: Page,
   from: { x: number; y: number },
   to: { x: number; y: number },
+  { snap = false } = {},
 ) {
+  if (!snap) await page.keyboard.down('Alt');
   await page.mouse.move(from.x, from.y);
   await page.mouse.down();
   await page.mouse.move((from.x + to.x) / 2, (from.y + to.y) / 2, { steps: 4 });
   await page.mouse.move(to.x, to.y, { steps: 4 });
   await page.mouse.up();
+  if (!snap) await page.keyboard.up('Alt');
 }
 
 export async function addPostit(page: Page, text: string) {

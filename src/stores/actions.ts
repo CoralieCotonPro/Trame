@@ -1,6 +1,7 @@
 import { fitCamera, screenToBoard, visibleBoardRect, zoomAt } from '../lib/camera';
 import { cloneElement, createLine, createPostit, createText } from '../lib/elements';
 import { lineFromPoints } from '../lib/line';
+import { snapPoint } from '../lib/snap';
 import { boundsOf, recentCentroid, sortByZ } from '../lib/geometry';
 import { displayRect } from '../lib/layout';
 import { isShown, matchesFilters, valuesOf } from '../lib/tags';
@@ -52,9 +53,10 @@ function viewportCenter(): Point {
 }
 
 /** Évite d'empiler exactement deux éléments créés au même endroit. */
+/** Position libre, alignée sur la grille si l'aimantation est active. */
 function freeSpot(position: Point): Point {
   const taken = allElements();
-  const spot = { ...position };
+  const spot = ui().snapToGrid ? snapPoint(position) : { ...position };
   while (taken.some((element) => element.x === spot.x && element.y === spot.y)) {
     spot.x += PASTE_OFFSET;
     spot.y += PASTE_OFFSET;

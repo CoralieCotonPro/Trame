@@ -17,6 +17,7 @@ import {
   MIN_TEXT_WIDTH,
 } from '../lib/layout';
 import { constrainAngle, lineEndpoints, lineFromPoints } from '../lib/line';
+import { handlePoint, snapDelta, snapPoint } from '../lib/snap';
 import {
   addLine,
   addPostit,
@@ -57,6 +58,8 @@ type Gesture =
       kind: 'drag';
       start: Point;
       origin: Point;
+      /** Coin de l'élément saisi : c'est lui qui s'aimante à la grille. */
+      anchor: Point;
       moved: boolean;
       collapseTo: string | null;
       badge: { elementId: string; categoryId: string } | null;
@@ -69,6 +72,9 @@ type Gesture =
 
 const ui = () => useUiStore.getState();
 const elements = visibleElements;
+
+/** Alt (Option sur Mac) suspend l'aimantation le temps d'un geste. */
+const snapping = (event: MouseEvent) => ui().snapToGrid && !event.altKey;
 
 function singleSelected(): BoardElement | null {
   const { selectedIds, editingId } = ui();
@@ -131,7 +137,7 @@ export function useBoardPointer(containerRef: RefObject<HTMLDivElement | null>) 
 
       const point = boardPoint(event);
       if (tool === 'line' && event.button === 0) {
-        gesture = { kind: 'draw', from: point };
+        gesture = { kind: 'draw', from: snapping(event) ? snapPoint(point) : point };
         return;
       }
 
@@ -174,6 +180,7 @@ export function useBoardPointer(containerRef: RefObject<HTMLDivElement | null>) 
           kind: 'drag',
           start: screen,
           origin: point,
+          anchor: { x: displayRect(hit).x, y: displayRect(hit).y },
           moved: false,
           collapseTo,
           badge: badge && { elementId: hit.id, categoryId: badge.categoryId },
@@ -242,13 +249,17 @@ export function useBoardPointer(containerRef: RefObject<HTMLDivElement | null>) 
           const moved = Math.hypot(screen.x - gesture.start.x, screen.y - gesture.start.y);
           if (!gesture.moved && moved < DRAG_THRESHOLD) return;
           gesture.moved = true;
-          const dragDelta = { x: point.x - gesture.origin.x, y: point.y - gesture.origin.y };
+          const raw = { x: point.x - gesture.origin.x, y: point.y - gesture.origin.y };
+          const dragDelta = snapping(event) ? snapDelta(gesture.anchor, raw) : raw;
           ui().set({ dragDelta });
           sendDrag([...ui().selectedIds], dragDelta);
           break;
         }
         case 'resize': {
-          const delta = { x: point.x - gesture.start.x, y: point.y - gesture.start.y };
+          const raw = { x: point.x - gesture.start.x, y: point.y - gesture.start.y };
+          const delta = snapping(event)
+            ? snapDelta(handlePoint(gesture.rect, gesture.handle), raw)
+            : raw;
           const rect = previewResize(gesture.element, gesture.rect, gesture.handle, delta);
           ui().set({ resizePreview: { id: gesture.element.id, rect } });
           break;
@@ -258,12 +269,20 @@ export function useBoardPointer(containerRef: RefObject<HTMLDivElement | null>) 
           updateMarquee(gesture.start, point, gesture.base);
           break;
         case 'draw': {
-          const to = event.shiftKey ? constrainAngle(gesture.from, point) : point;
+          const to = event.shiftKey
+            ? constrainAngle(gesture.from, point)
+            : snapping(event)
+              ? snapPoint(point)
+              : point;
           ui().set({ lineDraft: { from: gesture.from, to } });
           break;
         }
         case 'endpoint': {
-          const moving = event.shiftKey ? constrainAngle(gesture.fixed, point) : point;
+          const moving = event.shiftKey
+            ? constrainAngle(gesture.fixed, point)
+            : snapping(event)
+              ? snapPoint(point)
+              : point;
           const { start, ...rect } =
             gesture.which === 'end'
               ? lineFromPoints(gesture.fixed, moving)
