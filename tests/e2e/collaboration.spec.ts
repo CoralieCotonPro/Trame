@@ -214,6 +214,7 @@ test('annuler n’efface pas ce qu’un collègue a modifié entre-temps', async
   const { other } = await twoSessions(page, browser);
   const postit = await addPostit(page, 'Avant');
   await saved(page);
+  const start = await box(postit);
   const from = await center(page, postit);
   await drag(page, from, { x: from.x + 100, y: from.y });
   await saved(page);
@@ -231,7 +232,7 @@ test('annuler n’efface pas ce qu’un collègue a modifié entre-temps', async
   await page.keyboard.press('Control+Z');
   await saved(page);
   await expect(items(other).filter({ hasText: 'Texte du collègue' })).toHaveCount(1);
-  await expect.poll(async () => (await box(items(other).first())).x).toBeCloseTo(from.x - 100, 0);
+  await expect.poll(async () => (await box(items(other).first())).x).toBeCloseTo(start.x, 0);
 });
 
 test('reconnexion : ce qui a été manqué pendant la coupure est rattrapé', async ({

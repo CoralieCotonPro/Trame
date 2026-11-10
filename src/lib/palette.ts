@@ -37,10 +37,11 @@ export const TEXT_LEVELS: Record<
   small: { label: 'Petit texte', short: 'Pt', fontSize: 13, fontStyle: 'normal' },
 };
 
+/** Carrés, en multiples du pas de la grille (24) pour s'emboîter quand ils sont aimantés. */
 export const POSTIT_SIZES = [
-  { id: 'S', label: 'Petit', width: 160, height: 120 },
-  { id: 'M', label: 'Moyen', width: 200, height: 160 },
-  { id: 'L', label: 'Grand', width: 280, height: 220 },
+  { id: 'S', label: 'Petit', width: 144, height: 144 },
+  { id: 'M', label: 'Moyen', width: 192, height: 192 },
+  { id: 'L', label: 'Grand', width: 264, height: 264 },
 ] as const;
 
 export function postitFill(colorId: string): string {

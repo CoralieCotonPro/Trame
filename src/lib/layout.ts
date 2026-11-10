@@ -12,6 +12,7 @@ import type {
 import { containsPoint } from './geometry';
 import { FONT_FAMILY, LINE_HEIGHT, TEXT_LEVELS } from './palette';
 import { displayText, parseLinks } from './richText';
+import { GRID_SPACING } from './snap';
 import {
   flowBadges,
   readableTextColor,
@@ -34,7 +35,7 @@ export const POSTIT_BODY_SIZE = 15;
 export const POSTIT_PLACEHOLDER = 'Double-cliquez pour écrire';
 export const TEXT_PLACEHOLDER = 'Texte vide';
 
-export const MIN_POSTIT = { width: 120, height: 80 };
+export const MIN_POSTIT = { width: 120, height: 72 };
 export const MIN_TEXT_WIDTH = 60;
 
 let measurer: Konva.Text | null = null;
@@ -174,14 +175,19 @@ export function contentHeight(element: BoardElement): number {
   return element.type === 'text' ? textHeight(element) : element.height;
 }
 
-/** Rectangle réellement occupé sur le tableau. */
+/**
+ * Rectangle réellement occupé sur le tableau. Un post-it dont le texte déborde s'allonge
+ * d'un nombre entier de pas de grille, pour rester aligné sur elle.
+ */
 export function displayRect(element: BoardElement): Rect {
   return {
     x: element.x,
     y: element.y,
     width: element.width,
     height:
-      element.type === 'postit' ? Math.max(element.height, contentHeight(element)) : contentHeight(element),
+      element.type === 'postit'
+        ? Math.max(element.height, Math.ceil(contentHeight(element) / GRID_SPACING) * GRID_SPACING)
+        : contentHeight(element),
   };
 }
 

@@ -176,7 +176,7 @@ test('un rectangle remplace la sélection, avec Shift il la complète', async ({
   await page.keyboard.press('Escape');
 
   await drag(page, { x: 150, y: 150 }, { x: 450, y: 500 });
-  await drag(page, { x: 550, y: 150 }, { x: 850, y: 500 });
+  await drag(page, { x: 550, y: 100 }, { x: 850, y: 500 });
   await page.keyboard.press('Delete');
   await expect(items(page)).toHaveCount(1);
   await expect(items(page)).toHaveText('Post-it : Un');
@@ -184,7 +184,7 @@ test('un rectangle remplace la sélection, avec Shift il la complète', async ({
   await page.keyboard.press('Control+Z');
   await drag(page, { x: 150, y: 150 }, { x: 450, y: 500 });
   await page.keyboard.down('Shift');
-  await drag(page, { x: 550, y: 150 }, { x: 850, y: 500 });
+  await drag(page, { x: 550, y: 100 }, { x: 850, y: 500 });
   await page.keyboard.up('Shift');
   await page.keyboard.press('Delete');
   await expect(items(page)).toHaveCount(0);

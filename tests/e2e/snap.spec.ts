@@ -69,3 +69,22 @@ test('Alt suspend l’aimantation, et elle se désactive dans le menu', async ({
   await drag(page, from, { x: from.x + 5, y: from.y }, { snap: true });
   await expectCornerOnGrid(postit);
 });
+
+test('un post-it est carré par défaut et s’allonge d’un nombre entier de pas de grille', async ({
+  page,
+}) => {
+  const postit = await addPostit(page, 'Court');
+  const square = await box(postit);
+  expect(square.width).toBe(square.height);
+  expect(onGrid(square.width)).toBe(true);
+
+  const long = Array.from({ length: 30 }, (_, index) => `Ligne ${index + 1}`).join('\n');
+  const point = await center(page, postit);
+  await page.mouse.dblclick(point.x, point.y);
+  await page.getByRole('textbox', { name: 'Texte du post-it' }).fill(long);
+  await page.keyboard.press('Escape');
+  const grown = await box(items(page).first());
+  expect(grown.width).toBe(square.width);
+  expect(grown.height).toBeGreaterThan(square.height);
+  expect(onGrid(grown.height), `hauteur = ${grown.height}`).toBe(true);
+});
