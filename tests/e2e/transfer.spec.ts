@@ -121,7 +121,7 @@ test('export PNG : cadré sur les éléments, avec texte et badges dessinés', a
       height: image.height,
       background: count(246, 246, 246),
       postit: count(253, 219, 250),
-      badge: count(77, 255, 255),
+      badge: count(202, 202, 251),
       selectionMark: count(0, 0, 145),
       ink: count(22, 22, 22),
     };

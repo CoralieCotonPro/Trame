@@ -290,6 +290,10 @@ function handleDbChange(change: DbChange) {
     case 'tag_values':
       applyCatalogRow(change);
       break;
+    case 'bulk':
+      // Modification groupée : un seul signal, on relit le tableau.
+      void refreshFromServer().catch(() => undefined);
+      break;
     case 'boards':
       if (change.o === 'D') loseAccess();
       else if (!session.engine.pending().some((op) => op.kind === 'board.rename')) {

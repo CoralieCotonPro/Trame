@@ -654,3 +654,13 @@ test('un participant qui arrive voit qui est déjà en train d’écrire', async
   await openBoardAs(late, owner, boardId);
   await expect(late.getByText(/modifie…/)).toBeVisible();
 });
+
+test('une grosse modification groupée arrive chez les autres en un seul signal', async ({
+  page,
+  browser,
+}) => {
+  const { other, user, boardId } = await twoSessions(page, browser);
+  await ok(user, boardId, Array.from({ length: 60 }, () => postitOp()));
+  await expect(items(other)).toHaveCount(60);
+  await expect(items(page)).toHaveCount(60);
+});

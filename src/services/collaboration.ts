@@ -12,7 +12,7 @@ const EASING = 0.35;
 
 export interface DbChange {
   c: string | null;
-  t: 'boards' | 'elements' | 'element_tags' | 'tag_categories' | 'tag_values';
+  t: 'boards' | 'elements' | 'element_tags' | 'tag_categories' | 'tag_values' | 'bulk';
   o: 'I' | 'U' | 'D';
   r: Record<string, unknown>;
 }

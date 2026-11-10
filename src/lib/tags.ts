@@ -2,56 +2,51 @@ import type { BoardElement, TagCategory, TagFilters, TagValue } from '../types/b
 
 export const TAG_LABEL_MAX = 40;
 
+/** Palette choisie pour le projet ; le texte des badges s'adapte à chaque fond. */
 export const TAG_COLORS = [
-  // Cyan, magenta, jaune et noir purs, puis leurs teintes à 70, 40 et 20 %.
-  { id: '#00ffff', label: 'Cyan pur' },
-  { id: '#4dffff', label: 'Cyan 70 %' },
-  { id: '#99ffff', label: 'Cyan 40 %' },
-  { id: '#ccffff', label: 'Cyan 20 %' },
-  { id: '#ff00ff', label: 'Magenta pur' },
-  { id: '#ff4dff', label: 'Magenta 70 %' },
-  { id: '#ff99ff', label: 'Magenta 40 %' },
-  { id: '#ffccff', label: 'Magenta 20 %' },
-  { id: '#ffff00', label: 'Jaune pur' },
-  { id: '#ffff4d', label: 'Jaune 70 %' },
-  { id: '#ffff99', label: 'Jaune 40 %' },
-  { id: '#ffffcc', label: 'Jaune 20 %' },
-  { id: '#000000', label: 'Noir pur' },
-  { id: '#4d4d4d', label: 'Noir 70 %' },
-  { id: '#999999', label: 'Noir 40 %' },
-  { id: '#cccccc', label: 'Noir 20 %' },
+  { id: '#ececfe', label: 'Bleu très pâle' },
+  { id: '#e3e3fd', label: 'Bleu pâle' },
+  { id: '#cacafb', label: 'Bleu clair' },
+  { id: '#6a6af4', label: 'Bleu' },
+  { id: '#000091', label: 'Bleu France' },
+  { id: '#b6cffb', label: 'Bleu ciel' },
+  { id: '#60e0eb', label: 'Turquoise' },
+  { id: '#95e257', label: 'Vert' },
+  { id: '#ffe552', label: 'Jaune' },
+  { id: '#ff732c', label: 'Orange' },
+  { id: '#f774ef', label: 'Rose' },
+  { id: '#cecece', label: 'Gris clair' },
+  { id: '#b3afb2', label: 'Gris' },
 ] as const;
-
-const color = (index: number) => (TAG_COLORS[index] as (typeof TAG_COLORS)[number]).id;
 
 export const DEFAULT_CATEGORIES: { name: string; values: [string, string][] }[] = [
   {
     name: 'Sizing',
     values: [
-      ['XS', color(3)],
-      ['S', color(2)],
-      ['M', color(1)],
-      ['L', color(0)],
-      ['XL', color(12)],
+      ['XS', '#ececfe'],
+      ['S', '#e3e3fd'],
+      ['M', '#cacafb'],
+      ['L', '#6a6af4'],
+      ['XL', '#000091'],
     ],
   },
   {
     name: 'Statut',
     values: [
-      ['À lancer', color(15)],
-      ['En conception', color(10)],
-      ['Prêt à spec', color(8)],
-      ['Affiné', color(6)],
-      ['En dev', color(4)],
-      ['En prod', color(12)],
+      ['À lancer', '#cecece'],
+      ['En conception', '#ffe552'],
+      ['À rédiger', '#ff732c'],
+      ['Affiné', '#b6cffb'],
+      ['En dev', '#60e0eb'],
+      ['En prod', '#95e257'],
     ],
   },
   {
     name: 'Thématique',
     values: [
-      ['Avis réglementaire', color(5)],
-      ['Simulateur', color(9)],
-      ['Admin/data', color(13)],
+      ['Avis réglementaire', '#6a6af4'],
+      ['Simulateur', '#f774ef'],
+      ['Admin/data', '#b3afb2'],
     ],
   },
 ];

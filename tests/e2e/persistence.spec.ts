@@ -21,28 +21,73 @@ async function secondSession(browser: Browser, user: TestUser, boardId: string):
   return page;
 }
 
-test('connexion réelle par lien reçu par e-mail', async ({ page }) => {
-  const email = `lien-${crypto.randomUUID()}@exemple.test`;
-  await page.goto('/');
-  await page.getByLabel(/adresse e-mail/).fill(email);
-  await page.getByRole('button', { name: 'Recevoir le lien' }).click();
-  await expect(page.getByRole('status')).toContainText(email);
-
+/** Lit le dernier e-mail reçu dans la boîte de test locale. */
+async function lastEmail(email: string) {
   const mailpit = process.env.E2E_MAILPIT_URL as string;
-  let link: string | undefined;
+  let html = '';
   await expect
     .poll(async () => {
       const list = await (await fetch(`${mailpit}/api/v1/search?query=to:"${email}"`)).json();
       const id = list.messages?.[0]?.ID as string | undefined;
       if (!id) return false;
       const message = await (await fetch(`${mailpit}/api/v1/message/${id}`)).json();
-      link = /https?:\/\/[^\s"<>]+\/auth\/v1\/verify[^\s"<>]+/.exec(message.Text as string)?.[0];
-      return Boolean(link);
+      html = `${message.HTML ?? ''} ${message.Text ?? ''}`;
+      return true;
     })
     .toBe(true);
+  return html;
+}
 
-  await page.goto((link as string).replaceAll('&amp;', '&'));
+async function requestCode(page: Page, email: string) {
+  await page.goto('/');
+  await page.getByLabel(/adresse e-mail/).fill(email);
+  await page.getByRole('button', { name: 'Recevoir un code' }).click();
+  await expect(page.getByRole('status')).toContainText(email);
+  const message = await lastEmail(email);
+  return /id="code-connexion">\s*(\d{6,10})\s*</.exec(message)?.[1] as string;
+}
+
+test('connexion réelle par code reçu par e-mail, sans lien à cliquer', async ({ page }) => {
+  const email = `code-${crypto.randomUUID()}@exemple.test`;
+  const code = await requestCode(page, email);
+  expect(code).toMatch(/^\d{6}$/);
+  expect(await lastEmail(email)).not.toMatch(/auth\/v1\/verify/);
+
+  await page.getByLabel('Code reçu par e-mail').fill(code);
+  await page.getByRole('button', { name: 'Se connecter' }).click();
   await expect(page.getByRole('heading', { name: 'Mes tableaux' })).toBeVisible();
+
+  // La session reste ouverte au rechargement.
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Mes tableaux' })).toBeVisible();
+});
+
+test('un code faux est refusé, et l’adresse survit à un rechargement de l’onglet', async ({
+  page,
+}) => {
+  const email = `code-${crypto.randomUUID()}@exemple.test`;
+  const code = await requestCode(page, email);
+
+  await page.reload();
+  await expect(page.getByRole('status')).toContainText(email);
+
+  await page.getByLabel('Code reçu par e-mail').fill(code === '000000' ? '111111' : '000000');
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await expect(page.getByRole('alert')).toContainText('Code incorrect');
+
+  await page.getByLabel('Code reçu par e-mail').fill(code);
+  await page.getByRole('button', { name: 'Se connecter' }).click();
+  await expect(page.getByRole('heading', { name: 'Mes tableaux' })).toBeVisible();
+});
+
+test('un ancien lien expiré affiche une explication au lieu d’un retour silencieux', async ({
+  page,
+}) => {
+  await page.goto(
+    '/#error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired',
+  );
+  await expect(page.getByRole('alert')).toContainText('a expiré ou a déjà servi');
+  await expect(page).not.toHaveURL(/error_code/);
 });
 
 test('crée un tableau, le retrouve dans la liste et après rechargement', async ({ page }) => {
@@ -90,7 +135,7 @@ test('les titres, le catalogue et une suppression sont conservés', async ({ pag
   await page.getByRole('button', { name: 'Gérer les tags' }).click();
   const manager = page.getByRole('dialog', { name: 'Gérer les tags' });
   await manager.getByRole('button', { name: 'Changer la couleur de M', exact: true }).click();
-  await manager.getByRole('button', { name: 'Couleur Magenta pur' }).click();
+  await manager.getByRole('button', { name: 'Couleur Rose' }).click();
   await manager.getByRole('textbox', { name: 'Nouvelle catégorie' }).fill('Équipe');
   await manager.getByRole('button', { name: 'Ajouter la catégorie' }).click();
   await manager.getByRole('button', { name: 'Fermer' }).click();
@@ -105,7 +150,7 @@ test('les titres, le catalogue et une suppression sont conservés', async ({ pag
   await expect(manager.getByRole('region', { name: 'Catégorie Équipe' })).toBeVisible();
   await expect(manager.getByRole('button', { name: 'Changer la couleur de M', exact: true })).toHaveCSS(
     'background-color',
-    'rgb(255, 0, 255)',
+    'rgb(247, 116, 239)',
   );
 });
 

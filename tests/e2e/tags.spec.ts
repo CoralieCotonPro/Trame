@@ -58,11 +58,11 @@ test('ajoute trois tags de catégories différentes', async ({ page }) => {
   const postit = await taggedPostit(
     page,
     'Améliorer les résultats',
-    ['Sizing : M', 'Statut : Prêt à spec', 'Thématique : Simulateur'],
+    ['Sizing : M', 'Statut : À rédiger', 'Thématique : Simulateur'],
     { x: 500, y: 300 },
   );
-  await expect(postit).toHaveAttribute('data-tags', 'M|Prêt à spec|Simulateur');
-  await expect(postit).toContainText('Sizing : M, Statut : Prêt à spec, Thématique : Simulateur');
+  await expect(postit).toHaveAttribute('data-tags', 'M|À rédiger|Simulateur');
+  await expect(postit).toContainText('Sizing : M, Statut : À rédiger, Thématique : Simulateur');
 });
 
 test('une catégorie ne garde qu’une valeur, et un second clic la retire', async ({ page }) => {
@@ -138,12 +138,12 @@ test('une couleur modifiée se propage à tous les post-it concernés, à l’é
   await manager(page).getByRole('button', { name: 'Changer la couleur de M', exact: true }).click();
   await manager(page)
     .getByRole('group', { name: 'Couleurs pour M' })
-    .getByRole('button', { name: 'Couleur Magenta pur' })
+    .getByRole('button', { name: 'Couleur Rose' })
     .click();
   await manager(page).getByRole('button', { name: 'Fermer' }).click();
 
-  await expect(a).toHaveAttribute('data-tag-colors', '#ff00ff');
-  await expect(b).toHaveAttribute('data-tag-colors', '#ff00ff');
+  await expect(a).toHaveAttribute('data-tag-colors', '#f774ef');
+  await expect(b).toHaveAttribute('data-tag-colors', '#f774ef');
   await expect(other).toHaveAttribute('data-tag-colors', otherColor ?? '');
   expect(Buffer.compare(before, await page.screenshot())).not.toBe(0);
 });
@@ -223,17 +223,17 @@ test('dans la gestion des tags, Suppr ne touche pas au tableau', async ({ page }
   await expect(items(page)).toHaveCount(1);
 });
 
-test('filtre combiné : taille M ou L, et statut Prêt à spec', async ({ page }) => {
-  await taggedPostit(page, 'M à faire', ['Sizing : M', 'Statut : Prêt à spec'], { x: 250, y: 200 });
-  await taggedPostit(page, 'L à faire', ['Sizing : L', 'Statut : Prêt à spec'], { x: 550, y: 200 });
-  await taggedPostit(page, 'S à faire', ['Sizing : S', 'Statut : Prêt à spec'], { x: 850, y: 200 });
+test('filtre combiné : taille M ou L, et statut À rédiger', async ({ page }) => {
+  await taggedPostit(page, 'M à faire', ['Sizing : M', 'Statut : À rédiger'], { x: 250, y: 200 });
+  await taggedPostit(page, 'L à faire', ['Sizing : L', 'Statut : À rédiger'], { x: 550, y: 200 });
+  await taggedPostit(page, 'S à faire', ['Sizing : S', 'Statut : À rédiger'], { x: 850, y: 200 });
   await taggedPostit(page, 'M terminé', ['Sizing : M', 'Statut : En prod'], { x: 250, y: 500 });
   await page.mouse.click(1150, 600);
 
   await openFilters(page);
   await filtersPanel(page).getByRole('checkbox', { name: 'Filtrer Sizing : M', exact: true }).click();
   await filtersPanel(page).getByRole('checkbox', { name: 'Filtrer Sizing : L', exact: true }).click();
-  await filtersPanel(page).getByRole('checkbox', { name: 'Filtrer Statut : Prêt à spec' }).click();
+  await filtersPanel(page).getByRole('checkbox', { name: 'Filtrer Statut : À rédiger' }).click();
 
   await expect(items(page)).toHaveCount(2);
   await expect(items(page).filter({ hasText: 'M à faire' })).toHaveCount(1);

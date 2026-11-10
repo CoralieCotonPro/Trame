@@ -36,7 +36,7 @@ describe('catalogue par défaut', () => {
     ]);
     expect(summary).toEqual([
       ['Sizing', ['XS', 'S', 'M', 'L', 'XL']],
-      ['Statut', ['À lancer', 'En conception', 'Prêt à spec', 'Affiné', 'En dev', 'En prod']],
+      ['Statut', ['À lancer', 'En conception', 'À rédiger', 'Affiné', 'En dev', 'En prod']],
       ['Thématique', ['Avis réglementaire', 'Simulateur', 'Admin/data']],
     ]);
   });
