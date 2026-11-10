@@ -103,10 +103,13 @@ jobs:
           cache: npm
       - run: npm ci
       # Avant le site : les nouveaux écrans peuvent avoir besoin des nouvelles tables.
-      # Les machines GitHub n'ont pas d'IPv6 : la liaison passe par le pooler Supabase (IPv4).
+      # Les machines GitHub n'ont pas d'IPv6 : on passe par le pooler Supabase (IPv4).
+      # Son adresse (sans mot de passe) est dans la variable SUPABASE_POOLER_URL, car la clé du
+      # robot n'a pas le droit de la lire elle-même.
       - name: Mettre à jour la base Supabase
         run: |
           npx supabase link "${{ vars.SUPABASE_PROJECT_ID }}" --yes
+          printf '%s' "${{ vars.SUPABASE_POOLER_URL }}" > supabase/.temp/pooler-url
           npx supabase db push --remote --yes
       - name: Publier le site
         run: npx --yes "$NETLIFY_CLI" deploy --build --prod
