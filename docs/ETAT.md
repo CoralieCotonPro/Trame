@@ -15,7 +15,7 @@
 | Catégories et valeurs de tags personnalisables | Oui | Oui | Fonctionne |
 | Tags sur post-it, propagation des libellés et couleurs | Oui | Oui | Fonctionne |
 | Filtres combinés | Oui | Oui | Fonctionne |
-| Connexion du propriétaire par lien e-mail | Oui | Oui | Fonctionne en local |
+| Connexion du propriétaire par mot de passe, lien e-mail en secours | Oui | Oui | En ligne |
 | Création, liste et suppression de tableaux | Oui | Oui | Fonctionne |
 | Sauvegarde automatique et indicateur fiable | Oui | Oui | Fonctionne |
 | Modifications conservées hors connexion, nouvelles tentatives | Oui | Oui | Fonctionne |
