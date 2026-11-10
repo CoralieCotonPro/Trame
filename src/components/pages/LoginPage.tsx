@@ -1,82 +1,61 @@
 import { useState, type FormEvent } from 'react';
 import { initialAuthError, supabase } from '../../lib/supabase';
 
-const PENDING_EMAIL_KEY = 'trame:pending-email';
-
-/** Sur téléphone, l'onglet peut être rechargé pendant qu'on va lire ses e-mails. */
-function readPendingEmail(): string {
-  try {
-    return sessionStorage.getItem(PENDING_EMAIL_KEY) ?? '';
-  } catch {
-    return '';
-  }
-}
-
-function storePendingEmail(email: string | null) {
-  try {
-    if (email) sessionStorage.setItem(PENDING_EMAIL_KEY, email);
-    else sessionStorage.removeItem(PENDING_EMAIL_KEY);
-  } catch {
-    // Confort seulement : l'adresse sera simplement redemandée.
-  }
-}
+type Status = 'idle' | 'busy' | 'link-sent';
 
 function linkErrorMessage(code: string | null): string | null {
   if (!code) return null;
   if (code === 'otp_expired') {
-    return 'Ce lien de connexion a expiré ou a déjà servi. Demandez un code ci-dessous.';
+    return 'Ce lien de connexion a expiré ou a déjà servi : certaines messageries ouvrent les liens automatiquement. Connectez-vous avec votre mot de passe, ou demandez un nouveau lien.';
   }
-  return 'La connexion a échoué. Demandez un code ci-dessous.';
+  return 'La connexion par lien a échoué. Connectez-vous avec votre mot de passe, ou demandez un nouveau lien.';
 }
 
 export function LoginPage() {
-  const [pendingEmail, setPendingEmail] = useState(readPendingEmail);
-  const [email, setEmail] = useState(pendingEmail);
-  const [code, setCode] = useState('');
-  const [busy, setBusy] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [status, setStatus] = useState<Status>('idle');
   const [error, setError] = useState<string | null>(() => linkErrorMessage(initialAuthError));
 
-  const requestCode = async (event: FormEvent) => {
+  const signIn = async (event: FormEvent) => {
     event.preventDefault();
-    setBusy(true);
+    setStatus('busy');
     setError(null);
-    const { error: sendError } = await supabase.auth.signInWithOtp({ email: email.trim() });
-    setBusy(false);
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+    setStatus('idle');
+    if (signInError) {
+      setError(
+        signInError.status === 429
+          ? 'Trop de tentatives. Patientez quelques minutes.'
+          : 'Adresse ou mot de passe incorrect. Pas encore de mot de passe ? Recevez un lien par e-mail.',
+      );
+    }
+  };
+
+  const sendLink = async () => {
+    if (!email.trim()) {
+      setError('Indiquez d’abord votre adresse e-mail.');
+      return;
+    }
+    setStatus('busy');
+    setError(null);
+    const { error: sendError } = await supabase.auth.signInWithOtp({
+      email: email.trim(),
+      options: { emailRedirectTo: window.location.origin },
+    });
     if (sendError) {
+      setStatus('idle');
       setError(
         sendError.status === 429
-          ? "Trop d'envois récents. Patientez un peu avant de redemander un code."
+          ? "Trop d'envois récents (2 par heure au maximum). Patientez avant de redemander un lien."
           : "L'envoi a échoué. Vérifiez l'adresse et réessayez dans quelques instants.",
       );
       return;
     }
-    storePendingEmail(email.trim());
-    setPendingEmail(email.trim());
-  };
-
-  const verifyCode = async (event: FormEvent) => {
-    event.preventDefault();
-    setBusy(true);
-    setError(null);
-    const { error: verifyError } = await supabase.auth.verifyOtp({
-      email: pendingEmail,
-      token: code.replace(/\s/g, ''),
-      type: 'email',
-    });
-    setBusy(false);
-    if (verifyError) {
-      setError('Code incorrect ou expiré. Vérifiez-le, ou demandez-en un nouveau.');
-      return;
-    }
-    // La session ouverte, l'application affiche directement les tableaux.
-    storePendingEmail(null);
-  };
-
-  const restart = () => {
-    storePendingEmail(null);
-    setPendingEmail('');
-    setCode('');
-    setError(null);
+    setStatus('link-sent');
   };
 
   return (
@@ -84,62 +63,69 @@ export function LoginPage() {
       <section className="w-full max-w-sm rounded-panel border border-line bg-surface p-6 shadow-panel">
         <h1 className="text-xl font-bold">Trame</h1>
 
-        {pendingEmail ? (
-          <form onSubmit={(event) => void verifyCode(event)} className="mt-3">
+        {status === 'link-sent' ? (
+          <div className="mt-3">
             <p role="status" className="text-ink-soft">
-              Un code a été envoyé à <strong className="text-ink">{pendingEmail}</strong>.
+              Un lien de connexion a été envoyé à <strong className="text-ink">{email}</strong>.
+              Ouvrez-le, puis définissez un mot de passe depuis la page « Mes tableaux » : vous
+              n'aurez plus besoin d'e-mail ensuite.
             </p>
-            <label htmlFor="code" className="mt-3 block text-sm text-ink-soft">
-              Code reçu par e-mail
-            </label>
-            <input
-              id="code"
-              required
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              pattern="[0-9 ]{6,12}"
-              maxLength={12}
-              value={code}
-              onChange={(event) => setCode(event.target.value)}
-              className="mt-1.5 h-12 w-full rounded-lg border border-line px-3 text-center text-2xl tracking-widest"
-            />
-            <button
-              type="submit"
-              disabled={busy}
-              className="mt-3 h-10 w-full rounded-lg bg-accent font-medium text-white disabled:opacity-60"
-            >
-              {busy ? 'Vérification…' : 'Se connecter'}
-            </button>
             <button
               type="button"
-              onClick={restart}
-              className="mt-2 w-full text-sm text-ink-soft underline-offset-2 hover:underline"
+              onClick={() => setStatus('idle')}
+              className="mt-3 text-sm text-ink-soft underline-offset-2 hover:underline"
             >
-              Changer d'adresse ou recevoir un nouveau code
+              Revenir à la connexion
             </button>
-          </form>
+          </div>
         ) : (
-          <form onSubmit={(event) => void requestCode(event)} className="mt-3">
-            <label htmlFor="email" className="block text-sm text-ink-soft">
-              Votre adresse e-mail, pour recevoir un code de connexion
-            </label>
-            <input
-              id="email"
-              type="email"
-              required
-              autoComplete="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              className="mt-1.5 h-10 w-full rounded-lg border border-line px-3"
-            />
-            <button
-              type="submit"
-              disabled={busy}
-              className="mt-3 h-10 w-full rounded-lg bg-accent font-medium text-white disabled:opacity-60"
-            >
-              {busy ? 'Envoi…' : 'Recevoir un code'}
-            </button>
-          </form>
+          <>
+            <form onSubmit={(event) => void signIn(event)} className="mt-3">
+              <label htmlFor="email" className="block text-sm text-ink-soft">
+                Adresse e-mail
+              </label>
+              <input
+                id="email"
+                type="email"
+                required
+                autoComplete="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                className="mt-1.5 h-10 w-full rounded-lg border border-line px-3"
+              />
+              <label htmlFor="password" className="mt-3 block text-sm text-ink-soft">
+                Mot de passe
+              </label>
+              <input
+                id="password"
+                type="password"
+                required
+                autoComplete="current-password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                className="mt-1.5 h-10 w-full rounded-lg border border-line px-3"
+              />
+              <button
+                type="submit"
+                disabled={status === 'busy'}
+                className="mt-3 h-10 w-full rounded-lg bg-accent font-medium text-white disabled:opacity-60"
+              >
+                Se connecter
+              </button>
+            </form>
+
+            <div className="mt-5 border-t border-line pt-4">
+              <p className="text-sm text-ink-soft">Mot de passe oublié ou pas encore défini ?</p>
+              <button
+                type="button"
+                disabled={status === 'busy'}
+                onClick={() => void sendLink()}
+                className="mt-2 h-10 w-full rounded-lg border border-accent font-medium text-accent disabled:opacity-60"
+              >
+                Recevoir un lien par e-mail
+              </button>
+            </div>
+          </>
         )}
 
         {error && (

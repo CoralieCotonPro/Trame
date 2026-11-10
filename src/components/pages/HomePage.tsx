@@ -4,6 +4,7 @@ import { navigate } from '../../hooks/useRoute';
 import { supabase } from '../../lib/supabase';
 import { createBoard, deleteBoard, listBoards, type BoardSummary } from '../../services/boardApi';
 import { IconButton } from '../toolbar/IconButton';
+import { PasswordForm } from './PasswordForm';
 
 interface BoardRowProps {
   board: BoardSummary;
@@ -82,6 +83,8 @@ export function HomePage({ userId, isGuest }: { userId: string; isGuest: boolean
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
+  const [passwordOpen, setPasswordOpen] = useState(false);
+
   useEffect(() => {
     listBoards()
       .then(setBoards)
@@ -105,14 +108,27 @@ export function HomePage({ userId, isGuest }: { userId: string; isGuest: boolean
       <div className="mx-auto mt-12 max-w-xl">
         <header className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">Mes tableaux</h1>
-          <button
-            type="button"
-            onClick={() => void supabase.auth.signOut()}
-            className="rounded-md px-2 py-1 text-sm text-ink-soft hover:bg-surface"
-          >
-            Se déconnecter
-          </button>
+          <div className="flex gap-1">
+            {!isGuest && (
+              <button
+                type="button"
+                onClick={() => setPasswordOpen(true)}
+                className="rounded-md px-2 py-1 text-sm text-ink-soft hover:bg-surface"
+              >
+                Mot de passe
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => void supabase.auth.signOut()}
+              className="rounded-md px-2 py-1 text-sm text-ink-soft hover:bg-surface"
+            >
+              Se déconnecter
+            </button>
+          </div>
         </header>
+
+        {passwordOpen && <PasswordForm onDone={() => setPasswordOpen(false)} />}
 
         {!isGuest && (
           <form onSubmit={(event) => void submit(event)} className="mt-6 flex gap-2">

@@ -38,46 +38,60 @@ async function lastEmail(email: string) {
   return html;
 }
 
-async function requestCode(page: Page, email: string) {
+const signInForm = async (page: Page, email: string, password: string) => {
   await page.goto('/');
-  await page.getByLabel(/adresse e-mail/).fill(email);
-  await page.getByRole('button', { name: 'Recevoir un code' }).click();
-  await expect(page.getByRole('status')).toContainText(email);
-  const message = await lastEmail(email);
-  return /id="code-connexion">\s*(\d{6,10})\s*</.exec(message)?.[1] as string;
-}
-
-test('connexion réelle par code reçu par e-mail, sans lien à cliquer', async ({ page }) => {
-  const email = `code-${crypto.randomUUID()}@exemple.test`;
-  const code = await requestCode(page, email);
-  expect(code).toMatch(/^\d{6}$/);
-  expect(await lastEmail(email)).not.toMatch(/auth\/v1\/verify/);
-
-  await page.getByLabel('Code reçu par e-mail').fill(code);
+  await page.getByLabel('Adresse e-mail').fill(email);
+  await page.getByLabel('Mot de passe', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Se connecter' }).click();
+};
+
+test('première connexion par lien e-mail, puis mot de passe défini et utilisé', async ({
+  page,
+  browser,
+}) => {
+  const email = `lien-${crypto.randomUUID()}@exemple.test`;
+  await page.goto('/');
+  await page.getByLabel('Adresse e-mail').fill(email);
+  await page.getByRole('button', { name: 'Recevoir un lien par e-mail' }).click();
+  await expect(page.getByRole('status')).toContainText(email);
+
+  const message = await lastEmail(email);
+  const link = /https?:\/\/[^\s"<>]+\/auth\/v1\/verify[^\s"<>]+/.exec(message)?.[0] as string;
+  await page.goto(link.replaceAll('&amp;', '&'));
   await expect(page.getByRole('heading', { name: 'Mes tableaux' })).toBeVisible();
 
-  // La session reste ouverte au rechargement.
-  await page.reload();
-  await expect(page.getByRole('heading', { name: 'Mes tableaux' })).toBeVisible();
+  await page.getByRole('button', { name: 'Mot de passe' }).click();
+  const form = page.getByRole('form', { name: 'Définir mon mot de passe' });
+  await form.getByLabel('Nouveau mot de passe').fill('court');
+  await form.getByLabel('Confirmer le mot de passe').fill('court');
+  await form.getByRole('button', { name: 'Enregistrer le mot de passe' }).click();
+  await expect(form.getByRole('alert')).toContainText('au moins 10');
+
+  const password = `Trame-${crypto.randomUUID()}`;
+  await form.getByLabel('Nouveau mot de passe').fill(password);
+  await form.getByLabel('Confirmer le mot de passe').fill(password);
+  await form.getByRole('button', { name: 'Enregistrer le mot de passe' }).click();
+  await expect(form.getByRole('status')).toContainText('Mot de passe enregistré');
+
+  // Sur un autre appareil : plus besoin d'e-mail.
+  const phone = await (await browser.newContext()).newPage();
+  await signInForm(phone, email, password);
+  await expect(phone.getByRole('heading', { name: 'Mes tableaux' })).toBeVisible();
+  await phone.reload();
+  await expect(phone.getByRole('heading', { name: 'Mes tableaux' })).toBeVisible();
 });
 
-test('un code faux est refusé, et l’adresse survit à un rechargement de l’onglet', async ({
-  page,
-}) => {
-  const email = `code-${crypto.randomUUID()}@exemple.test`;
-  const code = await requestCode(page, email);
+test('un mauvais mot de passe est refusé avec un message clair', async ({ page }) => {
+  const user = await createUser();
+  await signInForm(page, user.email, 'pas-le-bon-mot-de-passe');
+  await expect(page.getByRole('alert')).toContainText('Adresse ou mot de passe incorrect');
+  await expect(page.getByRole('heading', { name: 'Mes tableaux' })).toHaveCount(0);
+});
 
-  await page.reload();
-  await expect(page.getByRole('status')).toContainText(email);
-
-  await page.getByLabel('Code reçu par e-mail').fill(code === '000000' ? '111111' : '000000');
-  await page.getByRole('button', { name: 'Se connecter' }).click();
-  await expect(page.getByRole('alert')).toContainText('Code incorrect');
-
-  await page.getByLabel('Code reçu par e-mail').fill(code);
-  await page.getByRole('button', { name: 'Se connecter' }).click();
-  await expect(page.getByRole('heading', { name: 'Mes tableaux' })).toBeVisible();
+test('demander un lien sans adresse affiche une consigne', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Recevoir un lien par e-mail' }).click();
+  await expect(page.getByRole('alert')).toContainText('adresse e-mail');
 });
 
 test('un ancien lien expiré affiche une explication au lieu d’un retour silencieux', async ({

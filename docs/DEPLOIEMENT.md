@@ -1,6 +1,6 @@
 # Mettre le tableau en ligne
 
-Durée : environ 20 minutes. Il faut un compte Supabase et un compte Netlify, tous deux gratuits. Vos valeurs réelles remplacent les éléments entre `<chevrons>`.
+Durée : environ 20 minutes. Sur l'offre gratuite, les modèles d'e-mail de Supabase ne sont pas modifiables : la première connexion se fait par le lien reçu, puis on définit un mot de passe depuis « Mes tableaux ». Il faut un compte Supabase et un compte Netlify, tous deux gratuits. Vos valeurs réelles remplacent les éléments entre `<chevrons>`.
 
 ## 1. Créer le projet Supabase
 
