@@ -34,7 +34,9 @@ Un export contient tout le tableau, dans un fichier lisible et versionné.
 | `style.level` d'un texte | `h1`, `h2`, `h3`, `body`, `small` |
 | `style.align` d'un texte | `left`, `center`, `right` |
 | `tags` | Par identifiant de catégorie : l'identifiant d'une valeur de cette catégorie |
-| Trait (`type: "line"`) | `x`, `y`, `width`, `height` : rectangle englobant ; `style.start` : coin de départ (`tl`, `tr`, `bl`, `br`), le trait finit au coin opposé ; `style.thickness` : `thin` ou `thick` ; `style.arrow` : `none` ou `end` ; `content` vide |
+| Trait (`type: "line"`) | `x`, `y`, `width`, `height` : rectangle englobant ; `style.start` : coin de départ (`tl`, `tr`, `bl`, `br`), le trait finit au coin opposé ; `style.thickness` : `thin` ou `thick` ; `style.arrow` : `none` ou `end` ; `content.text` (facultatif, 500 caractères) : texte écrit au milieu |
+| Accroche d'un trait (facultatif) | `style.from` / `style.to` : identifiant de l'élément où commence / finit le trait ; `style.fromSide` / `style.toSide` : `top`, `right`, `bottom` ou `left`. L'extrémité suit alors cet élément. Une accroche vers un élément absent du fichier est ignorée : l'extrémité reste au coin du rectangle englobant |
+| Losange (`type: "diamond"`) | `content.text` : texte centré ; `style.color` : mêmes valeurs que les post-it |
 | Liens | Dans `body` ou `text`, notés `[mots](https://adresse)`. Seules les adresses `http` et `https` deviennent des liens. |
 
 **Limites :** 2000 éléments, 50 catégories, 500 valeurs, 5000 caractères par texte, 10 Mo par fichier.

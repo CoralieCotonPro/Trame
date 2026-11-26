@@ -42,6 +42,13 @@ Compromis de Konva : le canvas ne sait pas éditer du texte. Pendant l'édition,
 - Le canvas étant invisible au clavier et aux lecteurs d'écran, une liste HTML masquée (`ElementsA11yList`) rend chaque élément atteignable. Les tests navigateur s'appuient aussi dessus.
 - Chaque action produit une opération et son inverse, ce qui sert à la fois à l'annulation et à la sauvegarde. L'annulation ne concerne que ses propres actions.
 
+## Flèches et losanges
+
+- Une flèche est un trait (`type: 'line'`) dont chaque extrémité peut être accrochée au milieu d'un côté d'un élément (`style.from`/`fromSide`, `style.to`/`toSide`). Ses extrémités sont recalculées à l'affichage (`lib/line.ts`, `resolveLineEnds`) : déplacer ou agrandir l'élément ne produit aucune écriture sur la flèche. Le rectangle englobant enregistré ne sert que si l'élément accroché a disparu.
+- Une chaîne vide détache une extrémité : la base fusionne `style` champ par champ et n'efface jamais une clé.
+- Supprimer un élément supprime dans la même action les flèches qui y sont accrochées. Copier une flèche avec ses deux éléments relie les copies ; sinon, l'extrémité orpheline devient libre.
+- Un losange (`type: 'diamond'`) se comporte comme un post-it sans tags. Son texte occupe un rectangle inscrit dans la forme, et sa hauteur grandit avec le texte.
+
 ## Tags
 
 - Un post-it ne stocke que `catégorie → identifiant de valeur`. Libellés et couleurs vivent uniquement dans le catalogue (`stores/tagStore.ts`) : les modifier met à jour tous les post-it.

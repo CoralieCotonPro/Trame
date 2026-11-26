@@ -1,5 +1,6 @@
 import type { BoardElement, TagCategory, TagValue } from '../types/board';
 import { POSTIT_COLORS, TEXT_LEVELS } from './palette';
+import { isSide } from './line';
 import { isHexColor, TAG_LABEL_MAX } from './tags';
 
 /** Format d'échange d'un tableau, décrit dans docs/FORMAT.md. */
@@ -9,6 +10,7 @@ export const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
 const MAX_ELEMENTS = 2000;
 const MAX_TEXT = 5000;
+const MAX_LABEL = 500;
 const MAX_COORDINATE = 10_000_000;
 
 export interface BoardFile {
@@ -42,7 +44,11 @@ export function buildBoardFile(
       const { id, x, y, width, height, zIndex } = element;
       const base = { id, x, y, width, height, zIndex };
       if (element.type === 'line') {
-        return { ...base, type: 'line', content: {}, style: element.style };
+        const content = element.content.text ? { text: element.content.text } : {};
+        return { ...base, type: 'line', content, style: element.style };
+      }
+      if (element.type === 'diamond') {
+        return { ...base, type: 'diamond', content: element.content, style: element.style };
       }
       if (element.type === 'text') {
         return { ...base, type: 'text', content: element.content, style: element.style };
@@ -192,7 +198,30 @@ function parseElement(raw: unknown, values: TagValue[]): FileElement {
     if (!THICKNESSES.has(thickness) || !ARROWS.has(arrow) || !CORNERS.has(start)) {
       fail('Le style d’un trait est invalide.');
     }
-    return { ...base, type: 'line', content: {}, style: { color, thickness, arrow, start } } as FileElement;
+    const end = (idKey: string, sideKey: string) => {
+      const id = style[idKey] === undefined ? '' : asText(style[idKey], 'L’accroche d’un trait', 0, 64);
+      const side = style[sideKey] ?? '';
+      if (side !== '' && !isSide(side)) fail('Le côté d’accroche d’un trait est invalide.');
+      return id && side ? { [idKey]: id, [sideKey]: side } : {};
+    };
+    const text = content.text === undefined ? '' : asText(content.text, 'Le texte d’un trait', 0, MAX_LABEL);
+    return {
+      ...base,
+      type: 'line',
+      content: text ? { text } : {},
+      style: { color, thickness, arrow, start, ...end('from', 'fromSide'), ...end('to', 'toSide') },
+    } as FileElement;
+  }
+
+  if (item.type === 'diamond') {
+    const color = asText(style.color, 'La couleur d’un losange', 1, 20);
+    if (!POSTIT_IDS.has(color)) fail(`La couleur de losange « ${color} » est inconnue.`);
+    return {
+      ...base,
+      type: 'diamond',
+      content: { text: asText(content.text, 'Le texte d’un losange', 0, MAX_TEXT) },
+      style: { color },
+    };
   }
 
   return fail('Un élément est d’un type inconnu.');
@@ -223,6 +252,17 @@ export function parseBoardFile(text: string): ParseResult {
     );
     if (new Set(elements.map((element) => element.id)).size !== elements.length) {
       fail('Deux éléments ont le même identifiant.');
+    }
+    // Une accroche vers un élément absent du fichier, ou vers un trait, devient libre.
+    const anchors = new Set(elements.filter((e) => e.type !== 'line').map((e) => e.id));
+    for (const element of elements) {
+      if (element.type !== 'line') continue;
+      const { from, fromSide, to, toSide, ...rest } = element.style;
+      element.style = {
+        ...rest,
+        ...(from && anchors.has(from) ? { from, fromSide } : {}),
+        ...(to && anchors.has(to) ? { to, toSide } : {}),
+      };
     }
 
     return {
@@ -261,16 +301,29 @@ export function withFreshIds(file: BoardFile): BoardFile {
       id: idFor(value.id),
       categoryId: idFor(value.categoryId),
     })),
-    elements: file.elements.map((element) =>
-      element.type === 'postit'
-        ? {
-            ...element,
-            id: idFor(element.id),
-            tags: Object.fromEntries(
-              Object.entries(element.tags).map(([category, value]) => [idFor(category), idFor(value)]),
-            ),
-          }
-        : { ...element, id: idFor(element.id) },
-    ),
+    elements: file.elements.map((element) => {
+      if (element.type === 'postit') {
+        return {
+          ...element,
+          id: idFor(element.id),
+          tags: Object.fromEntries(
+            Object.entries(element.tags).map(([category, value]) => [idFor(category), idFor(value)]),
+          ),
+        };
+      }
+      if (element.type === 'line') {
+        const { from, to } = element.style;
+        return {
+          ...element,
+          id: idFor(element.id),
+          style: {
+            ...element.style,
+            ...(from ? { from: idFor(from) } : {}),
+            ...(to ? { to: idFor(to) } : {}),
+          },
+        };
+      }
+      return { ...element, id: idFor(element.id) };
+    }),
   };
 }

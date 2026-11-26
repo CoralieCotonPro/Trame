@@ -1,11 +1,27 @@
 import { useLayoutEffect, useRef, useState, type FocusEvent, type KeyboardEvent } from 'react';
-import { displayRect, layoutPostit, POSTIT_BODY_SIZE, POSTIT_PADDING } from '../../lib/layout';
-import { FONT_FAMILY, LINE_HEIGHT, postitFill, postitInk, TEXT_LEVELS } from '../../lib/palette';
+import {
+  displayRect,
+  LABEL_FONT_SIZE,
+  layoutDiamond,
+  layoutPostit,
+  lineEnds,
+  POSTIT_BODY_SIZE,
+  POSTIT_PADDING,
+} from '../../lib/layout';
+import { midpoint } from '../../lib/line';
+import { FONT_FAMILY, INK, LINE_HEIGHT, postitFill, postitInk, TEXT_LEVELS } from '../../lib/palette';
 import { requestLink } from '../../lib/linkRequest';
 import { finishEditing } from '../../stores/actions';
 import { useBoardStore } from '../../stores/boardStore';
 import { useUiStore } from '../../stores/uiStore';
-import type { BoardElement, ElementPatch, PostitElement, TextElement } from '../../types/board';
+import type {
+  BoardElement,
+  DiamondElement,
+  ElementPatch,
+  LineElement,
+  PostitElement,
+  TextElement,
+} from '../../types/board';
 
 const MAX_LENGTH = 5000;
 
@@ -145,8 +161,93 @@ function TextEditor({ element }: { element: TextElement }) {
   );
 }
 
+function DiamondEditor({ element }: { element: DiamondElement }) {
+  const [text, setText] = useState(element.content.text);
+  const { innerWidth } = layoutDiamond(element);
+  const ref = useAutoHeight(text, innerWidth);
+  useFocusAtEnd(ref);
+  const { onBlur, onKeyDown } = useFinish(element.id, () => ({ content: { text } }));
+  const { width, height } = displayRect(element);
+
+  return (
+    <div
+      onBlur={onBlur}
+      onKeyDown={onKeyDown}
+      className="flex items-center justify-center"
+      style={{ width, minHeight: height, position: 'relative' }}
+    >
+      <div
+        aria-hidden="true"
+        className="absolute inset-0"
+        style={{
+          background: postitFill(element.style.color),
+          clipPath: 'polygon(50% 0, 100% 50%, 50% 100%, 0 50%)',
+        }}
+      />
+      <textarea
+        ref={ref}
+        data-editor-for={element.id}
+        data-field="text"
+        rows={1}
+        value={text}
+        maxLength={MAX_LENGTH}
+        onChange={(event) => setText(event.target.value)}
+        placeholder="Votre question"
+        aria-label="Texte du losange"
+        className={`${fieldClass} relative`}
+        style={{
+          width: innerWidth,
+          fontFamily: FONT_FAMILY,
+          fontSize: POSTIT_BODY_SIZE,
+          lineHeight: LINE_HEIGHT,
+          textAlign: 'center',
+          color: postitInk(element.style.color),
+        }}
+      />
+    </div>
+  );
+}
+
+/** Texte d'une flèche : centré sur son milieu. */
+function LabelEditor({ element }: { element: LineElement }) {
+  const [text, setText] = useState(element.content.text ?? '');
+  const ref = useAutoHeight(text, 180);
+  useFocusAtEnd(ref);
+  const { onBlur, onKeyDown } = useFinish(element.id, () => ({ content: { text: text.trim() } }));
+
+  return (
+    <div
+      onBlur={onBlur}
+      onKeyDown={onKeyDown}
+      className="-translate-x-1/2 -translate-y-1/2 rounded border border-line bg-white px-1.5 py-0.5 shadow-panel"
+      style={{ width: 192 }}
+    >
+      <textarea
+        ref={ref}
+        data-editor-for={element.id}
+        data-field="text"
+        rows={1}
+        value={text}
+        maxLength={500}
+        onChange={(event) => setText(event.target.value)}
+        placeholder="Texte de la flèche"
+        aria-label="Texte de la flèche"
+        className={fieldClass}
+        style={{
+          fontFamily: FONT_FAMILY,
+          fontSize: LABEL_FONT_SIZE,
+          lineHeight: LINE_HEIGHT,
+          textAlign: 'center',
+          color: INK,
+        }}
+      />
+    </div>
+  );
+}
+
 function renderEditor(element: BoardElement) {
-  if (element.type === 'line') return null;
+  if (element.type === 'line') return <LabelEditor key={element.id} element={element} />;
+  if (element.type === 'diamond') return <DiamondEditor key={element.id} element={element} />;
   return element.type === 'postit' ? (
     <PostitEditor key={element.id} element={element} />
   ) : (
@@ -160,12 +261,19 @@ export function ElementEditor() {
   const camera = useUiStore((state) => state.camera);
   const element = useBoardStore((state) => (editingId ? state.elements[editingId] : undefined));
   if (!element) return null;
+  const origin =
+    element.type === 'line'
+      ? (() => {
+          const ends = lineEnds(element);
+          return midpoint(ends.start, ends.end);
+        })()
+      : element;
 
   return (
     <div
       className="absolute top-0 left-0 z-10 origin-top-left"
       style={{
-        transform: `translate(${element.x * camera.zoom + camera.x}px, ${element.y * camera.zoom + camera.y}px) scale(${camera.zoom})`,
+        transform: `translate(${origin.x * camera.zoom + camera.x}px, ${origin.y * camera.zoom + camera.y}px) scale(${camera.zoom})`,
       }}
     >
       {renderEditor(element)}

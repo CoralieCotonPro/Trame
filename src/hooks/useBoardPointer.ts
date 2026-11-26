@@ -12,15 +12,20 @@ import {
   badgeAt,
   contentHeight,
   displayRect,
+  lineEnds,
+  lineTouches,
   linkAt,
+  MIN_DIAMOND,
   MIN_POSTIT,
   MIN_TEXT_WIDTH,
 } from '../lib/layout';
-import { constrainAngle, lineEndpoints, lineFromPoints } from '../lib/line';
+import { constrainAngle, lineFromPoints, nearestSide, SIDES, sideAnchor } from '../lib/line';
 import { handlePoint, snapDelta, snapPoint } from '../lib/snap';
 import {
+  addConnector,
   addLine,
   addPostit,
+  canConnect,
   moveSelection,
   openTagPicker,
   startEditing,
@@ -29,12 +34,15 @@ import {
 import { endDrag, sendCursor, sendDrag } from '../services/collaboration';
 import { useBoardStore } from '../stores/boardStore';
 import { useUiStore } from '../stores/uiStore';
-import type { BoardElement, Point, Rect } from '../types/board';
+import type { BoardElement, LineElement, Point, Rect, Side } from '../types/board';
 
 const DRAG_THRESHOLD = 3;
 const HANDLE_HIT_RADIUS = 10;
 const LINE_HIT_TOLERANCE = 6;
 const MIN_LINE_LENGTH = 4;
+/** Poignées de flèche : à cette distance du bord, en pixels d'écran. */
+export const CONNECT_OFFSET = 18;
+const CONNECT_HIT_RADIUS = 9;
 
 const CURSORS: Record<Handle, string> = {
   nw: 'nwse-resize',
@@ -66,7 +74,15 @@ type Gesture =
       link: string | null;
     }
   | { kind: 'draw'; from: Point }
-  | { kind: 'endpoint'; element: BoardElement; fixed: Point; which: 'start' | 'end' }
+  | { kind: 'connect'; source: BoardElement; side: Side; from: Point }
+  | {
+      kind: 'endpoint';
+      element: LineElement;
+      fixed: Point;
+      which: 'start' | 'end';
+      /** Élément accroché à l'autre extrémité : on n'y accroche pas les deux bouts. */
+      other: string;
+    }
   | { kind: 'resize'; element: BoardElement; rect: Rect; handle: Handle; start: Point }
   | { kind: 'marquee'; start: Point; base: Set<string>; moved: boolean; additive: boolean };
 
@@ -87,7 +103,8 @@ function handleAt(point: Point): { element: BoardElement; handle: Handle } | nul
   const element = singleSelected();
   if (!element || ui().role === 'viewer') return null;
   const radius = HANDLE_HIT_RADIUS / ui().camera.zoom;
-  for (const { handle, point: position } of elementHandles(element, displayRect(element))) {
+  const ends = element.type === 'line' ? lineEnds(element) : undefined;
+  for (const { handle, point: position } of elementHandles(element, displayRect(element), ends)) {
     if (Math.abs(point.x - position.x) <= radius && Math.abs(point.y - position.y) <= radius) {
       return { element, handle };
     }
@@ -95,12 +112,59 @@ function handleAt(point: Point): { element: BoardElement; handle: Handle } | nul
   return null;
 }
 
+/** Éléments dont les poignées de flèche sont affichées : le sélectionné et le survolé. */
+export function connectSources(): BoardElement[] {
+  const { hoverId, role, tool } = ui();
+  if (role === 'viewer' || tool !== 'select') return [];
+  const { elements } = useBoardStore.getState();
+  const candidates = [singleSelected(), hoverId ? elements[hoverId] : undefined];
+  const unique = new Map<string, BoardElement>();
+  for (const element of candidates) {
+    if (element && canConnect(element)) unique.set(element.id, element);
+  }
+  return [...unique.values()];
+}
+
+/** Position des quatre poignées de flèche d'un élément, en dehors de ses bords. */
+export function connectHandles(element: BoardElement, zoom: number) {
+  const rect = displayRect(element);
+  return SIDES.map((side) => ({ side, point: sideAnchor(rect, side, CONNECT_OFFSET / zoom) }));
+}
+
+function connectHandleAt(point: Point): { element: BoardElement; side: Side } | null {
+  const { zoom } = ui().camera;
+  const radius = CONNECT_HIT_RADIUS / zoom;
+  for (const element of connectSources()) {
+    for (const handle of connectHandles(element, zoom)) {
+      if (Math.hypot(point.x - handle.point.x, point.y - handle.point.y) <= radius) {
+        return { element, side: handle.side };
+      }
+    }
+  }
+  return null;
+}
+
+/** Entre le bord et les poignées, l'élément reste survolé : on peut aller les saisir. */
+function keepsHover(point: Point): boolean {
+  const { hoverId, camera } = ui();
+  const element = hoverId ? useBoardStore.getState().elements[hoverId] : undefined;
+  if (!element) return false;
+  const margin = (CONNECT_OFFSET + CONNECT_HIT_RADIUS) / camera.zoom;
+  const rect = displayRect(element);
+  return (
+    point.x >= rect.x - margin &&
+    point.x <= rect.x + rect.width + margin &&
+    point.y >= rect.y - margin &&
+    point.y <= rect.y + rect.height + margin
+  );
+}
+
 function previewResize(element: BoardElement, rect: Rect, handle: Handle, delta: Point): Rect {
   if (element.type === 'text') {
     const next = resizeRect(rect, handle, delta, { width: MIN_TEXT_WIDTH, height: 0 });
     return { ...next, height: rect.height };
   }
-  const min = { ...MIN_POSTIT };
+  const min = { ...(element.type === 'diamond' ? MIN_DIAMOND : MIN_POSTIT) };
   const { width } = resizeRect(rect, handle, delta, min);
   // À la largeur visée, la hauteur ne descend jamais sous celle du contenu.
   min.height = Math.max(min.height, contentHeight({ ...element, width }));
@@ -120,7 +184,23 @@ export function useBoardPointer(containerRef: RefObject<HTMLDivElement | null>) 
     };
     const boardPoint = (event: MouseEvent) => screenToBoard(ui().camera, localPoint(event));
     const elementAt = (point: Point) =>
-      hitTest(elements(), point, displayRect, LINE_HIT_TOLERANCE / ui().camera.zoom);
+      hitTest(elements(), point, displayRect, LINE_HIT_TOLERANCE / ui().camera.zoom, lineTouches);
+
+    /** Élément sous le point auquel une flèche peut s'accrocher, et le côté qui fait face à `from`. */
+    const connectTargetAt = (point: Point, from: Point, excluded: string) => {
+      const candidates = elements().filter(
+        (element) => canConnect(element) && element.id !== excluded,
+      );
+      const target = hitTest(candidates, point, displayRect);
+      if (!target) return null;
+      const rect = displayRect(target);
+      const side = nearestSide(rect, from);
+      return { id: target.id, side, point: sideAnchor(rect, side) };
+    };
+
+    const setHover = (id: string | null) => {
+      if (ui().hoverId !== id) ui().set({ hoverId: id });
+    };
 
     const onPointerDown = (event: PointerEvent) => {
       ui().set({ contextMenu: null });
@@ -143,18 +223,28 @@ export function useBoardPointer(containerRef: RefObject<HTMLDivElement | null>) 
 
       const resize = handleAt(point);
       if (resize?.element.type === 'line') {
-        const ends = lineEndpoints(displayRect(resize.element), resize.element.style.start);
+        const line = resize.element;
+        const ends = lineEnds(line);
         const which = resize.handle === 'start' ? 'start' : 'end';
         gesture = {
           kind: 'endpoint',
-          element: resize.element,
+          element: line,
           which,
           fixed: which === 'start' ? ends.end : ends.start,
+          other: (which === 'start' ? line.style.to : line.style.from) ?? '',
         };
         return;
       }
       if (resize) {
         gesture = { kind: 'resize', ...resize, rect: displayRect(resize.element), start: point };
+        return;
+      }
+
+      const connect = connectHandleAt(point);
+      if (connect) {
+        const from = sideAnchor(displayRect(connect.element), connect.side);
+        gesture = { kind: 'connect', source: connect.element, side: connect.side, from };
+        ui().set({ hoverId: connect.element.id, lineDraft: { from, to: from, arrow: true } });
         return;
       }
 
@@ -205,8 +295,15 @@ export function useBoardPointer(containerRef: RefObject<HTMLDivElement | null>) 
 
     const updateHoverCursor = (point: Point) => {
       const { tool, spaceHeld } = ui();
-      const hit = tool === 'select' && !spaceHeld ? handleAt(point) : null;
+      const selecting = tool === 'select' && !spaceHeld;
+      const hit = selecting ? handleAt(point) : null;
+      const connect = selecting && !hit ? connectHandleAt(point) : null;
+      if (!connect) {
+        const hovered = selecting ? elementAt(point) : null;
+        setHover(hovered && canConnect(hovered) ? hovered.id : keepsHover(point) ? ui().hoverId : null);
+      }
       if (hit) container.style.cursor = CURSORS[hit.handle];
+      else if (connect) container.style.cursor = 'crosshair';
       else if (tool === 'hand' || spaceHeld) container.style.cursor = 'grab';
       else if (tool === 'line') container.style.cursor = 'crosshair';
       else {
@@ -277,17 +374,37 @@ export function useBoardPointer(containerRef: RefObject<HTMLDivElement | null>) 
           ui().set({ lineDraft: { from: gesture.from, to } });
           break;
         }
+        case 'connect': {
+          const target = connectTargetAt(point, gesture.from, gesture.source.id);
+          ui().set({
+            connectTarget: target && { id: target.id, side: target.side },
+            lineDraft: { from: gesture.from, to: target?.point ?? point, arrow: true },
+          });
+          break;
+        }
         case 'endpoint': {
-          const moving = event.shiftKey
-            ? constrainAngle(gesture.fixed, point)
-            : snapping(event)
-              ? snapPoint(point)
-              : point;
+          const target = connectTargetAt(point, gesture.fixed, gesture.other);
+          const moving = target
+            ? target.point
+            : event.shiftKey
+              ? constrainAngle(gesture.fixed, point)
+              : snapping(event)
+                ? snapPoint(point)
+                : point;
           const { start, ...rect } =
             gesture.which === 'end'
               ? lineFromPoints(gesture.fixed, moving)
               : lineFromPoints(moving, gesture.fixed);
-          ui().set({ resizePreview: { id: gesture.element.id, rect, start } });
+          const id = target?.id ?? '';
+          const side: Side | '' = target?.side ?? '';
+          const style =
+            gesture.which === 'end'
+              ? { start, to: id, toSide: side }
+              : { start, from: id, fromSide: side };
+          ui().set({
+            resizePreview: { id: gesture.element.id, rect, style },
+            connectTarget: target && { id: target.id, side: target.side },
+          });
           break;
         }
       }
@@ -342,12 +459,22 @@ export function useBoardPointer(containerRef: RefObject<HTMLDivElement | null>) 
           if (draft && length * ui().camera.zoom >= MIN_LINE_LENGTH) addLine(draft.from, draft.to);
           break;
         }
+        case 'connect': {
+          const draft = ui().lineDraft;
+          const target = ui().connectTarget;
+          ui().set({ lineDraft: null, connectTarget: null });
+          const length = draft ? Math.hypot(draft.to.x - draft.from.x, draft.to.y - draft.from.y) : 0;
+          if (draft && (target || length * ui().camera.zoom >= CONNECT_OFFSET * 2)) {
+            addConnector(finished.source.id, finished.side, target, draft.to);
+          }
+          break;
+        }
         case 'endpoint': {
           const preview = ui().resizePreview;
-          ui().set({ resizePreview: null });
-          if (preview?.start) {
+          ui().set({ resizePreview: null, connectTarget: null });
+          if (preview?.style) {
             useBoardStore.getState().patchElements({
-              [preview.id]: { ...preview.rect, style: { start: preview.start } },
+              [preview.id]: { ...preview.rect, style: preview.style },
             });
           }
           break;
@@ -358,7 +485,7 @@ export function useBoardPointer(containerRef: RefObject<HTMLDivElement | null>) 
 
     const onPointerLeave = () => {
       if (gesture) return;
-      ui().set({ cursor: null });
+      ui().set({ cursor: null, hoverId: null });
       sendCursor(null);
     };
 
@@ -366,7 +493,6 @@ export function useBoardPointer(containerRef: RefObject<HTMLDivElement | null>) 
       if (ui().tool !== 'select' || ui().spaceHeld || ui().role === 'viewer') return;
       const point = boardPoint(event);
       const hit = elementAt(point);
-      if (hit?.type === 'line') return;
       if (hit) startEditing(hit.id);
       else if (ui().doubleClickCreates) addPostit(point);
     };

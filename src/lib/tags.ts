@@ -133,6 +133,25 @@ export function isShown(
   return selectedIds.has(element.id) || matchesFilters(element, filters);
 }
 
+/**
+ * Éléments affichés. Une flèche accrochée à un élément masqué par les filtres est masquée
+ * avec lui : elle ne pointerait plus vers rien.
+ */
+export function shownElements(
+  elements: BoardElement[],
+  filters: TagFilters,
+  selectedIds: ReadonlySet<string>,
+): BoardElement[] {
+  const hidden = new Set(
+    elements.filter((element) => !isShown(element, filters, selectedIds)).map((element) => element.id),
+  );
+  return elements.filter((element) => {
+    if (hidden.has(element.id)) return false;
+    if (element.type !== 'line' || selectedIds.has(element.id)) return true;
+    return ![element.style.from, element.style.to].some((id) => id && hidden.has(id));
+  });
+}
+
 export function activeFilterCount(filters: TagFilters): number {
   return Object.values(filters).reduce((total, valueIds) => total + valueIds.length, 0);
 }

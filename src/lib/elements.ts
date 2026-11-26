@@ -1,4 +1,11 @@
-import type { BoardElement, LineElement, Point, PostitElement, TextElement } from '../types/board';
+import type {
+  BoardElement,
+  DiamondElement,
+  LineElement,
+  Point,
+  PostitElement,
+  TextElement,
+} from '../types/board';
 import { INK, POSTIT_SIZES } from './palette';
 
 const DEFAULT_POSTIT = POSTIT_SIZES[1];
@@ -56,6 +63,19 @@ export function createLine(
     height: rect.height,
     content: {},
     style: { color: INK, thickness: 'thin', arrow: 'none', start },
+  };
+}
+
+export const DIAMOND_SIZE = { width: 192, height: 120 };
+
+export function createDiamond(position: Point, zIndex: number): DiamondElement {
+  return {
+    ...base(position, zIndex),
+    type: 'diamond',
+    width: DIAMOND_SIZE.width,
+    height: DIAMOND_SIZE.height,
+    content: { text: '' },
+    style: { color: 'blue' },
   };
 }
 

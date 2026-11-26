@@ -1,11 +1,11 @@
 import { fitCamera, screenToBoard, visibleBoardRect, zoomAt } from '../lib/camera';
-import { cloneElement, createLine, createPostit, createText } from '../lib/elements';
-import { lineFromPoints } from '../lib/line';
+import { cloneElement, createDiamond, createLine, createPostit, createText } from '../lib/elements';
+import { attachedIds, lineFromPoints, sideAnchor } from '../lib/line';
 import { snapPoint } from '../lib/snap';
 import { boundsOf, recentCentroid, sortByZ } from '../lib/geometry';
-import { displayRect } from '../lib/layout';
-import { isShown, matchesFilters, valuesOf } from '../lib/tags';
-import type { BoardElement, ElementPatch, Point } from '../types/board';
+import { displayRect, lineEnds } from '../lib/layout';
+import { matchesFilters, shownElements, valuesOf } from '../lib/tags';
+import type { BoardElement, ElementPatch, LineElement, Point, Side } from '../types/board';
 import { useBoardStore } from './boardStore';
 import { useTagStore } from './tagStore';
 import { useUiStore } from './uiStore';
@@ -24,7 +24,7 @@ function allElements(): BoardElement[] {
 /** Éléments non masqués par les filtres : les seuls que l'on peut atteindre. */
 export function visibleElements(): BoardElement[] {
   const { filters, selectedIds } = ui();
-  return allElements().filter((element) => isShown(element, filters, selectedIds));
+  return shownElements(allElements(), filters, selectedIds);
 }
 
 export function selectedElements(): BoardElement[] {
@@ -89,10 +89,16 @@ export function addText() {
   insertAndEdit({ ...element, ...freeSpot({ x: center.x - element.width / 2, y: center.y }) });
 }
 
+export function addDiamond() {
+  const center = ui().cursor ?? viewportCenter();
+  const element = createDiamond(center, topZ() + 1);
+  const spot = freeSpot({ x: center.x - element.width / 2, y: center.y - element.height / 2 });
+  insertAndEdit({ ...element, ...spot });
+}
+
+/** Sur un trait, on modifie le texte écrit en son milieu. */
 export function startEditing(id: string) {
-  const element = board().elements[id];
-  // Un trait n'a pas de texte à modifier.
-  if (!element || element.type === 'line') return;
+  if (!board().elements[id]) return;
   ui().set({ selectedIds: new Set([id]), editingId: id, contextMenu: null });
 }
 
@@ -103,13 +109,70 @@ export function addLine(from: Point, to: Point) {
   ui().select([element.id]);
 }
 
+/** Élément auquel une flèche peut s'accrocher. */
+export function canConnect(element: BoardElement | undefined): boolean {
+  return element !== undefined && element.type !== 'line';
+}
+
+/**
+ * Flèche tirée depuis un côté d'un élément, dans le sens du geste : elle finit sur
+ * `target` s'il y en a un, sinon au point `to`, laissé libre.
+ */
+export function addConnector(
+  sourceId: string,
+  sourceSide: Side,
+  target: { id: string; side: Side } | null,
+  to: Point,
+) {
+  const source = board().elements[sourceId];
+  const targetElement = target ? board().elements[target.id] : undefined;
+  if (!source) return;
+  const from = sideAnchor(displayRect(source), sourceSide);
+  const end = target && targetElement ? sideAnchor(displayRect(targetElement), target.side) : to;
+  const { start, ...rect } = lineFromPoints(from, end);
+  const line = createLine(rect, start, topZ() + 1);
+  const element: LineElement = {
+    ...line,
+    style: {
+      ...line.style,
+      arrow: 'end',
+      from: sourceId,
+      fromSide: sourceSide,
+      to: target && targetElement ? target.id : '',
+      toSide: target && targetElement ? target.side : '',
+    },
+  };
+  board().addElements([element]);
+  ui().select([element.id]);
+}
+
+/** Fige les extrémités accrochées d'un trait là où elles sont : il devient libre. */
+export function detachedCopy(line: LineElement, keep: ReadonlySet<string> = new Set()): LineElement {
+  const ends = lineEnds(line);
+  const { start, ...rect } = lineFromPoints(ends.start, ends.end);
+  const fromKept = Boolean(line.style.from && keep.has(line.style.from));
+  const toKept = Boolean(line.style.to && keep.has(line.style.to));
+  return {
+    ...line,
+    ...rect,
+    style: {
+      ...line.style,
+      start,
+      from: fromKept ? line.style.from : '',
+      fromSide: fromKept ? line.style.fromSide : '',
+      to: toKept ? line.style.to : '',
+      toSide: toKept ? line.style.toSide : '',
+    },
+  };
+}
+
 export function finishEditing(id: string, patch: ElementPatch | null) {
   ui().set({ editingId: null });
   const element = board().elements[id];
   if (!element || !patch?.content) return;
 
   const changed = Object.entries(patch.content).some(
-    ([key, value]) => (element.content as Record<string, string>)[key] !== value,
+    ([key, value]) => ((element.content as Record<string, string>)[key] ?? '') !== value,
   );
   if (changed) board().patchElements({ [id]: patch });
 
@@ -119,8 +182,15 @@ export function finishEditing(id: string, patch: ElementPatch | null) {
   }
 }
 
+/** Les flèches accrochées à un élément supprimé partent avec lui (et reviennent avec Annuler). */
 function deleteElements(ids: string[]) {
-  board().removeElements(ids);
+  const removed = new Set(ids);
+  for (const element of allElements()) {
+    if (element.type === 'line' && attachedIds(element).some((id) => removed.has(id))) {
+      ids = [...ids, element.id];
+    }
+  }
+  board().removeElements([...new Set(ids)]);
   const selectedIds = new Set(ui().selectedIds);
   ids.forEach((id) => selectedIds.delete(id));
   ui().set({ selectedIds });
@@ -131,9 +201,26 @@ export function deleteSelection() {
   ui().set({ contextMenu: null });
 }
 
+/**
+ * Une flèche copiée avec les deux éléments qu'elle relie relie leurs copies ; sinon,
+ * l'extrémité dont l'élément n'est pas copié devient libre, à sa place actuelle.
+ */
 function insertCopies(sources: BoardElement[], offset: Point) {
   let zIndex = topZ();
-  const copies = sortByZ(sources).map((source) => cloneElement(source, offset, (zIndex += 1)));
+  const copiedIds = new Set(sources.map((source) => source.id));
+  const prepared = sources.map((source) =>
+    source.type === 'line' ? detachedCopy(source, copiedIds) : source,
+  );
+  const copies = sortByZ(prepared).map((source) => cloneElement(source, offset, (zIndex += 1)));
+  const newIds = new Map(sortByZ(prepared).map((source, index) => [source.id, copies[index]!.id]));
+  for (const copy of copies) {
+    if (copy.type !== 'line') continue;
+    copy.style = {
+      ...copy.style,
+      from: copy.style.from ? (newIds.get(copy.style.from) ?? '') : copy.style.from,
+      to: copy.style.to ? (newIds.get(copy.style.to) ?? '') : copy.style.to,
+    };
+  }
   board().addElements(copies);
   ui().select(copies.map((copy) => copy.id));
   ui().set({ contextMenu: null });

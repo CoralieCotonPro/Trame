@@ -34,8 +34,10 @@ Ouvrez ensuite l'adresse affichée, en général <http://localhost:5173>.
 
 | Action | Raccourci |
 | --- | --- |
-| Nouveau post-it / nouveau texte | `N` / `T` |
-| Tracer un trait | `L` puis glisser (avec `Shift` : horizontal, vertical ou 45°) |
+| Nouveau post-it / nouveau texte / nouveau losange | `N` / `T` / `D` |
+| Relier deux éléments par une flèche | Glisser depuis l'un des 4 ronds autour d'un élément (au survol ou sélectionné) jusqu'à l'autre élément |
+| Écrire sur une flèche | Double-clic sur la flèche, ou `Entrée` quand elle est sélectionnée |
+| Tracer un trait | `L` puis glisser (avec `Shift` : horizontal, vertical ou 45°). Déposer une extrémité sur un élément l'y accroche |
 | Lien sur des mots | Sélectionner les mots pendant l'édition, puis `Ctrl/Cmd+K` |
 | Outil sélection / main | `V` / `H` |
 | Déplacer le tableau | `Espace` + glisser, outil Main, ou deux doigts sur le trackpad |

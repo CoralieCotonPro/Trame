@@ -1,4 +1,4 @@
-import type { LineCorner, Point, Rect } from '../types/board';
+import type { LineCorner, LineElement, Point, Rect, Side } from '../types/board';
 
 const OPPOSITE: Record<LineCorner, LineCorner> = { tl: 'br', br: 'tl', tr: 'bl', bl: 'tr' };
 
@@ -47,4 +47,74 @@ export function distanceToSegment(point: Point, a: Point, b: Point): number {
       ? 0
       : Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / lengthSquared));
   return Math.hypot(point.x - (a.x + t * dx), point.y - (a.y + t * dy));
+}
+
+export const SIDES: Side[] = ['top', 'right', 'bottom', 'left'];
+
+const NORMALS: Record<Side, Point> = {
+  top: { x: 0, y: -1 },
+  right: { x: 1, y: 0 },
+  bottom: { x: 0, y: 1 },
+  left: { x: -1, y: 0 },
+};
+
+/** Milieu d'un côté : c'est là que s'accroche une flèche (et la pointe d'un losange). */
+export function sideAnchor(rect: Rect, side: Side, outward = 0): Point {
+  const center = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+  const normal = NORMALS[side];
+  return {
+    x: center.x + normal.x * (rect.width / 2 + outward),
+    y: center.y + normal.y * (rect.height / 2 + outward),
+  };
+}
+
+/** Côté dont le milieu est le plus proche du point : celui qui fait face à l'autre extrémité. */
+export function nearestSide(rect: Rect, point: Point): Side {
+  let best: Side = 'top';
+  let bestDistance = Infinity;
+  for (const side of SIDES) {
+    const anchor = sideAnchor(rect, side);
+    const distance = Math.hypot(anchor.x - point.x, anchor.y - point.y);
+    if (distance < bestDistance) {
+      best = side;
+      bestDistance = distance;
+    }
+  }
+  return best;
+}
+
+export function isSide(value: unknown): value is Side {
+  return typeof value === 'string' && (SIDES as string[]).includes(value);
+}
+
+/** Rectangle d'un élément par son identifiant, ou `null` s'il n'existe pas (ou plus). */
+export type RectLookup = (id: string) => Rect | null;
+
+/** Éléments auxquels un trait est accroché. */
+export function attachedIds(line: LineElement): string[] {
+  return [line.style.from, line.style.to].filter((id): id is string => Boolean(id));
+}
+
+/**
+ * Extrémités réelles d'un trait : une extrémité accrochée suit son élément, une extrémité
+ * libre (ou dont l'élément a disparu) reste sur le rectangle englobant, décalé de `offset`.
+ */
+export function resolveLineEnds(
+  line: LineElement,
+  lookup: RectLookup,
+  offset: Point = { x: 0, y: 0 },
+): { start: Point; end: Point } {
+  const free = lineEndpoints(line, line.style.start);
+  const resolve = (id: string | undefined, side: Side | '' | undefined, fallback: Point) => {
+    const rect = id && isSide(side) ? lookup(id) : null;
+    return rect ? sideAnchor(rect, side as Side) : { x: fallback.x + offset.x, y: fallback.y + offset.y };
+  };
+  return {
+    start: resolve(line.style.from, line.style.fromSide, free.start),
+    end: resolve(line.style.to, line.style.toSide, free.end),
+  };
+}
+
+export function midpoint(a: Point, b: Point): Point {
+  return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
 }

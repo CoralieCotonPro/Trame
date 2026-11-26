@@ -1,7 +1,10 @@
 import Konva from 'konva';
+import { useBoardStore } from '../stores/boardStore';
 import { useTagStore } from '../stores/tagStore';
 import type {
   BoardElement,
+  DiamondElement,
+  LineElement,
   Point,
   PostitElement,
   Rect,
@@ -10,6 +13,7 @@ import type {
   TextElement,
 } from '../types/board';
 import { containsPoint } from './geometry';
+import { distanceToSegment, lineFromPoints, midpoint, resolveLineEnds, type RectLookup } from './line';
 import { FONT_FAMILY, LINE_HEIGHT, TEXT_LEVELS } from './palette';
 import { displayText, parseLinks } from './richText';
 import { GRID_SPACING } from './snap';
@@ -36,6 +40,11 @@ export const POSTIT_PLACEHOLDER = 'Double-cliquez pour écrire';
 export const TEXT_PLACEHOLDER = 'Texte vide';
 
 export const MIN_POSTIT = { width: 120, height: 72 };
+export const MIN_DIAMOND = { width: 120, height: 72 };
+export const DIAMOND_PLACEHOLDER = 'Question ?';
+/** Part du losange occupée par le texte : le rectangle reste inscrit dans la forme. */
+const DIAMOND_TEXT_WIDTH = 0.56;
+const DIAMOND_TEXT_HEIGHT = 0.4;
 export const MIN_TEXT_WIDTH = 60;
 
 let measurer: Konva.Text | null = null;
@@ -169,26 +178,105 @@ export function textHeight(element: TextElement): number {
   return height;
 }
 
+export interface DiamondLayout {
+  innerWidth: number;
+  textHeight: number;
+  contentHeight: number;
+}
+
+const diamondLayouts = new WeakMap<DiamondElement, DiamondLayout>();
+
+export function layoutDiamond(element: DiamondElement): DiamondLayout {
+  const cached = diamondLayouts.get(element);
+  if (cached) return cached;
+  const innerWidth = Math.max(1, Math.floor(element.width * DIAMOND_TEXT_WIDTH));
+  const text = displayText(element.content.text) || DIAMOND_PLACEHOLDER;
+  const textHeight = measureHeight(text, innerWidth, POSTIT_BODY_SIZE, 'normal');
+  const layout = { innerWidth, textHeight, contentHeight: textHeight / DIAMOND_TEXT_HEIGHT };
+  diamondLayouts.set(element, layout);
+  return layout;
+}
+
 /** Hauteur minimale pour que le contenu ne soit jamais coupé. */
 export function contentHeight(element: BoardElement): number {
   if (element.type === 'postit') return layoutPostit(element).contentHeight;
+  if (element.type === 'diamond') return layoutDiamond(element).contentHeight;
   return element.type === 'text' ? textHeight(element) : element.height;
+}
+
+/** Rectangle des éléments du tableau, d'après l'état enregistré. Un trait n'y sert pas d'accroche. */
+export const storeLookup: RectLookup = (id) => {
+  const element = useBoardStore.getState().elements[id];
+  return element && element.type !== 'line' ? displayRect(element) : null;
+};
+
+/** Extrémités réelles d'un trait, accroches comprises. */
+export function lineEnds(line: LineElement, lookup: RectLookup = storeLookup) {
+  return resolveLineEnds(line, lookup);
 }
 
 /**
  * Rectangle réellement occupé sur le tableau. Un post-it dont le texte déborde s'allonge
- * d'un nombre entier de pas de grille, pour rester aligné sur elle.
+ * d'un nombre entier de pas de grille, pour rester aligné sur elle. Un trait accroché
+ * occupe le rectangle entre les éléments qu'il relie.
  */
 export function displayRect(element: BoardElement): Rect {
+  if (element.type === 'line') {
+    const { start, end } = lineEnds(element);
+    return {
+      x: Math.min(start.x, end.x),
+      y: Math.min(start.y, end.y),
+      width: Math.max(1, Math.abs(end.x - start.x)),
+      height: Math.abs(end.y - start.y),
+    };
+  }
   return {
     x: element.x,
     y: element.y,
     width: element.width,
     height:
-      element.type === 'postit'
+      element.type === 'postit' || element.type === 'diamond'
         ? Math.max(element.height, Math.ceil(contentHeight(element) / GRID_SPACING) * GRID_SPACING)
         : contentHeight(element),
   };
+}
+
+export const LABEL_FONT_SIZE = 14;
+const LABEL_MAX_WIDTH = 220;
+export const LABEL_PADDING = { x: 6, y: 3 };
+
+let labelMeasurer: Konva.Text | null = null;
+
+/** Cadre du texte d'un trait, centré sur son milieu. `null` si le trait n'a pas de texte. */
+export function labelBox(
+  text: string,
+  ends: { start: Point; end: Point },
+): (Rect & { textWidth: number }) | null {
+  const shown = displayText(text);
+  if (!shown.trim()) return null;
+  labelMeasurer ??= new Konva.Text({ fontFamily: FONT_FAMILY, fontSize: LABEL_FONT_SIZE });
+  const widest = Math.max(...shown.split('\n').map((line) => labelMeasurer!.measureSize(line).width));
+  const textWidth = Math.min(LABEL_MAX_WIDTH, Math.ceil(widest) + 2);
+  const height = measureHeight(shown, textWidth, LABEL_FONT_SIZE, 'normal');
+  const center = midpoint(ends.start, ends.end);
+  const width = textWidth + LABEL_PADDING.x * 2;
+  const boxHeight = height + LABEL_PADDING.y * 2;
+  return { x: center.x - width / 2, y: center.y - boxHeight / 2, width, height: boxHeight, textWidth };
+}
+
+/** Trait dont le rectangle englobant est remis à jour d'après ses accroches. */
+export function withLiveGeometry(line: LineElement): LineElement {
+  const ends = lineEnds(line);
+  const { start, ...rect } = lineFromPoints(ends.start, ends.end);
+  return { ...line, ...rect, style: { ...line.style, start } };
+}
+
+/** Un trait se saisit près de sa ligne ou sur son texte. */
+export function lineTouches(line: LineElement, point: Point, tolerance: number): boolean {
+  const ends = lineEnds(line);
+  if (distanceToSegment(point, ends.start, ends.end) <= Math.max(tolerance, 1)) return true;
+  const box = labelBox(line.content.text ?? '', ends);
+  return box !== null && containsPoint(box, point);
 }
 
 export const LINK_COLOR = '#000091';
@@ -262,7 +350,15 @@ export function elementLinks(element: BoardElement): { origin: Point; segments: 
   if (element.type === 'line') return { origin: element, segments: [] };
   let segments = linkCache.get(element);
   if (!segments) {
-    if (element.type === 'postit') {
+    if (element.type === 'diamond') {
+      segments = linkSegments(
+        element.content.text,
+        layoutDiamond(element).innerWidth,
+        POSTIT_BODY_SIZE,
+        'normal',
+        'center',
+      );
+    } else if (element.type === 'postit') {
       segments = linkSegments(
         element.content.body,
         layoutPostit(element).innerWidth,
@@ -285,8 +381,19 @@ export function elementLinks(element: BoardElement): { origin: Point; segments: 
   const origin =
     element.type === 'postit'
       ? { x: element.x + POSTIT_PADDING, y: element.y + POSTIT_PADDING }
-      : { x: element.x, y: element.y };
+      : element.type === 'diamond'
+        ? diamondTextOrigin(element)
+        : { x: element.x, y: element.y };
   return { origin, segments };
+}
+
+/** Coin du texte d'un losange : centré dans la forme. */
+export function diamondTextOrigin(element: DiamondElement): Point {
+  const { innerWidth, textHeight: height } = layoutDiamond(element);
+  return {
+    x: element.x + (element.width - innerWidth) / 2,
+    y: element.y + (displayRect(element).height - height) / 2,
+  };
 }
 
 export function linkAt(element: BoardElement, point: Point): LinkSegment | null {

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { BoardFile } from '../lib/boardFile';
-import type { Camera, LineCorner, Point, Rect, TagFilters } from '../types/board';
+import type { Camera, LineElement, Point, Rect, Side, TagFilters } from '../types/board';
 
 export type Tool = 'select' | 'hand' | 'line';
 
@@ -23,9 +23,14 @@ interface UiState {
   spaceHeld: boolean;
   cursor: Point | null;
   dragDelta: Point | null;
-  resizePreview: { id: string; rect: Rect; start?: LineCorner } | null;
-  /** Trait en cours de tracé. */
-  lineDraft: { from: Point; to: Point } | null;
+  /** Aperçu d'un redimensionnement, ou d'une extrémité de trait déplacée (`style`). */
+  resizePreview: { id: string; rect: Rect; style?: Partial<LineElement['style']> } | null;
+  /** Trait en cours de tracé ; `arrow` pour une flèche tirée depuis un élément. */
+  lineDraft: { from: Point; to: Point; arrow?: boolean } | null;
+  /** Élément survolé : ses poignées de flèche apparaissent. */
+  hoverId: string | null;
+  /** Élément et côté où s'accrochera la flèche en cours. */
+  connectTarget: { id: string; side: Side } | null;
   /** Mots sélectionnés dans un texte, à transformer en lien. */
   linkRequest: { elementId: string; field: string; value: string; start: number; end: number } | null;
   marquee: Rect | null;
@@ -57,6 +62,8 @@ export const useUiStore = create<UiState>((set) => ({
   dragDelta: null,
   resizePreview: null,
   lineDraft: null,
+  hoverId: null,
+  connectTarget: null,
   linkRequest: null,
   marquee: null,
   contextMenu: null,

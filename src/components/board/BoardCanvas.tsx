@@ -1,21 +1,29 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { Group, Layer, Line as KonvaLine, Rect as KonvaRect, Stage } from 'react-konva';
-import { useBoardPointer } from '../../hooks/useBoardPointer';
+import {
+  Arrow as KonvaArrow,
+  Circle as KonvaCircle,
+  Group,
+  Layer,
+  Line as KonvaLine,
+  Rect as KonvaRect,
+  Stage,
+} from 'react-konva';
+import { connectHandles, connectSources, useBoardPointer } from '../../hooks/useBoardPointer';
 import { useElementSize } from '../../hooks/useElementSize';
 import { visibleBoardRect } from '../../lib/camera';
 import { elementHandles, rectsIntersect, sortByZ } from '../../lib/geometry';
-import { lineEndpoints } from '../../lib/line';
+import { attachedIds, resolveLineEnds, sideAnchor, type RectLookup } from '../../lib/line';
 import { INK } from '../../lib/palette';
 import { displayRect } from '../../lib/layout';
 import { registerBoardStage } from '../../lib/boardStage';
-import { isShown } from '../../lib/tags';
+import { shownElements } from '../../lib/tags';
 import { useBoardStore } from '../../stores/boardStore';
 import { usePresenceStore } from '../../stores/presenceStore';
 import { useTagStore } from '../../stores/tagStore';
 import { GRID_SPACING } from '../../lib/snap';
 import { useUiStore } from '../../stores/uiStore';
-import type { BoardElement, Camera, LineCorner, Rect } from '../../types/board';
-import { ElementView, LINE_WIDTHS } from '../elements/ElementView';
+import type { BoardElement, Camera, LineElement, Point } from '../../types/board';
+import { diamondPoints, ElementView, LINE_WIDTHS, type LineEnds } from '../elements/ElementView';
 
 const ACCENT = '#000091';
 const CULLING_MARGIN = 200;
@@ -30,19 +38,65 @@ function gridStyle(camera: Camera): React.CSSProperties {
   };
 }
 
+type Preview = ReturnType<typeof useUiStore.getState>['resizePreview'];
+
 /** Élément tel qu'affiché pendant un redimensionnement ou le déplacement d'une extrémité. */
-function withPreview(
-  element: BoardElement,
-  preview: { id: string; rect: Rect; start?: LineCorner } | null,
-): BoardElement {
+function withPreview(element: BoardElement, preview: Preview): BoardElement {
   if (preview?.id !== element.id) return element;
   const moved = { ...element, ...preview.rect };
-  return element.type === 'line' && preview.start
-    ? ({ ...moved, style: { ...element.style, start: preview.start } } as BoardElement)
+  return element.type === 'line' && preview.style
+    ? ({ ...moved, style: { ...element.style, ...preview.style } } as BoardElement)
     : (moved as BoardElement);
 }
 
-function SelectionOverlay({ elements }: { elements: Record<string, BoardElement> }) {
+interface Resolver {
+  /** Décalage en cours d'un élément : glissé ici ou par un autre participant. */
+  offsetOf: (id: string) => Point | null;
+  /** Extrémités d'un trait telles qu'affichées à cet instant. */
+  endsOf: (line: LineElement) => LineEnds;
+}
+
+function makeResolver(
+  elements: Record<string, BoardElement>,
+  selectedIds: ReadonlySet<string>,
+  dragDelta: Point | null,
+  resizePreview: Preview,
+  remoteDrags: Record<string, { ids: string[]; offset: Point }>,
+): Resolver {
+  const offsetOf = (id: string): Point | null => {
+    if (dragDelta && selectedIds.has(id)) return dragDelta;
+    for (const drag of Object.values(remoteDrags)) {
+      if (drag.ids.includes(id)) return drag.offset;
+    }
+    return null;
+  };
+  const rectOf: RectLookup = (id) => {
+    const element = elements[id];
+    if (!element || element.type === 'line') return null;
+    const rect = displayRect(withPreview(element, resizePreview));
+    const offset = offsetOf(id);
+    return offset ? { ...rect, x: rect.x + offset.x, y: rect.y + offset.y } : rect;
+  };
+  return {
+    offsetOf,
+    endsOf: (line) =>
+      resolveLineEnds(
+        withPreview(line, resizePreview) as LineElement,
+        rectOf,
+        offsetOf(line.id) ?? undefined,
+      ),
+  };
+}
+
+const ACCENT_SOFT = 'rgba(0, 0, 145, 0.3)';
+
+function SelectionOverlay({
+  elements,
+  resolver,
+}: {
+  elements: Record<string, BoardElement>;
+  resolver: Resolver;
+}) {
   const zoom = useUiStore((state) => state.camera.zoom);
   const selectedIds = useUiStore((state) => state.selectedIds);
   const editingId = useUiStore((state) => state.editingId);
@@ -50,32 +104,56 @@ function SelectionOverlay({ elements }: { elements: Record<string, BoardElement>
   const resizePreview = useUiStore((state) => state.resizePreview);
   const marquee = useUiStore((state) => state.marquee);
   const lineDraft = useUiStore((state) => state.lineDraft);
+  const connectTarget = useUiStore((state) => state.connectTarget);
+  // Les poignées de flèche suivent le survol, l'outil et les droits.
+  useUiStore((state) => state.hoverId);
+  useUiStore((state) => state.tool);
+  useUiStore((state) => state.role);
 
   const selected = [...selectedIds].flatMap((id) => elements[id] ?? []);
   const single = selected.length === 1 && !editingId && !dragDelta ? selected[0] : undefined;
   const handleSize = 10 / zoom;
+  const idle = !editingId && !dragDelta && !resizePreview && !lineDraft && !marquee;
+  const target = connectTarget ? elements[connectTarget.id] : undefined;
 
   return (
     <Layer listening={false}>
+      {selected.map((raw) => {
+        if (raw.type !== 'line') return null;
+        const { start, end } = resolver.endsOf(raw);
+        return (
+          <KonvaLine
+            key={raw.id}
+            points={[start.x, start.y, end.x, end.y]}
+            stroke={ACCENT_SOFT}
+            strokeWidth={LINE_WIDTHS[raw.style.thickness] + 8 / zoom}
+            lineCap="round"
+          />
+        );
+      })}
       <Group x={dragDelta?.x ?? 0} y={dragDelta?.y ?? 0}>
         {selected.map((raw) => {
           const element = withPreview(raw, resizePreview);
-          if (element.type === 'line') {
-            const { start, end } = lineEndpoints(element, element.style.start);
+          if (element.type === 'line') return null;
+          const rect = displayRect(element);
+          if (element.type === 'diamond') {
             return (
               <KonvaLine
                 key={element.id}
-                points={[start.x, start.y, end.x, end.y]}
-                stroke="rgba(0, 0, 145, 0.3)"
-                strokeWidth={LINE_WIDTHS[element.style.thickness] + 8 / zoom}
-                lineCap="round"
+                x={rect.x}
+                y={rect.y}
+                points={diamondPoints(rect.width, rect.height)}
+                closed
+                stroke={ACCENT}
+                strokeWidth={1.5}
+                strokeScaleEnabled={false}
               />
             );
           }
           return (
             <KonvaRect
               key={element.id}
-              {...displayRect(element)}
+              {...rect}
               stroke={ACCENT}
               strokeWidth={1.5}
               strokeScaleEnabled={false}
@@ -84,10 +162,43 @@ function SelectionOverlay({ elements }: { elements: Record<string, BoardElement>
           );
         })}
       </Group>
+      {idle &&
+        connectSources().flatMap((element) =>
+          connectHandles(element, zoom).map(({ side, point }) => (
+            <KonvaCircle
+              key={`${element.id}:${side}`}
+              x={point.x}
+              y={point.y}
+              radius={6 / zoom}
+              fill="#ffffff"
+              stroke={ACCENT}
+              strokeWidth={1.5}
+              strokeScaleEnabled={false}
+            />
+          )),
+        )}
+      {target && connectTarget && (
+        <>
+          <KonvaRect
+            {...displayRect(target)}
+            stroke={ACCENT}
+            strokeWidth={2}
+            dash={[6, 4]}
+            strokeScaleEnabled={false}
+            cornerRadius={4}
+          />
+          <KonvaCircle
+            {...sideAnchor(displayRect(target), connectTarget.side)}
+            radius={5 / zoom}
+            fill={ACCENT}
+          />
+        </>
+      )}
       {single &&
         (() => {
           const element = withPreview(single, resizePreview);
-          return elementHandles(element, displayRect(element)).map(({ handle, point }) => (
+          const ends = element.type === 'line' ? resolver.endsOf(single as LineElement) : undefined;
+          return elementHandles(element, displayRect(element), ends).map(({ handle, point }) => (
             <KonvaRect
               key={handle}
               x={point.x - handleSize / 2}
@@ -103,10 +214,13 @@ function SelectionOverlay({ elements }: { elements: Record<string, BoardElement>
           ));
         })()}
       {lineDraft && (
-        <KonvaLine
+        <KonvaArrow
           points={[lineDraft.from.x, lineDraft.from.y, lineDraft.to.x, lineDraft.to.y]}
           stroke={INK}
+          fill={INK}
           strokeWidth={LINE_WIDTHS.thin}
+          pointerLength={lineDraft.arrow ? 14 : 0}
+          pointerWidth={lineDraft.arrow ? 14 : 0}
           lineCap="round"
         />
       )}
@@ -152,8 +266,7 @@ export function BoardCanvas() {
   useTagStore((state) => state.categories);
 
   const sorted = useMemo(
-    () =>
-      sortByZ(Object.values(elements).filter((element) => isShown(element, filters, selectedIds))),
+    () => sortByZ(shownElements(Object.values(elements), filters, selectedIds)),
     [elements, filters, selectedIds],
   );
 
@@ -173,10 +286,20 @@ export function BoardCanvas() {
   const isMoving = (element: BoardElement) =>
     (isDragging && selectedIds.has(element.id)) || resizePreview?.id === element.id;
   const movedByOthers = new Set(Object.values(remoteDrags).flatMap((drag) => drag.ids));
-  const stationary = visible.filter(
-    (element) => !isMoving(element) && !movedByOthers.has(element.id),
+  const movesNow = (id: string) => {
+    const element = elements[id];
+    return movedByOthers.has(id) || (element !== undefined && isMoving(element));
+  };
+  // Un trait accroché suit en direct l'élément déplacé : il passe sur le calque mobile.
+  const lineMoves = (line: LineElement) => movesNow(line.id) || attachedIds(line).some(movesNow);
+  const resolver = makeResolver(elements, selectedIds, dragDelta, resizePreview, remoteDrags);
+  const stationary = visible.filter((element) =>
+    element.type === 'line' ? !lineMoves(element) : !isMoving(element) && !movedByOthers.has(element.id),
   );
-  const moving = sorted.filter(isMoving);
+  const moving = sorted.filter((element) => element.type !== 'line' && isMoving(element));
+  const movingLines = sorted.filter(
+    (element): element is LineElement => element.type === 'line' && lineMoves(element),
+  );
 
   const previewed = (element: BoardElement): BoardElement => withPreview(element, resizePreview);
 
@@ -216,6 +339,7 @@ export function BoardCanvas() {
                 key={element.id}
                 element={element}
                 editing={element.id === editingId}
+                ends={element.type === 'line' ? resolver.endsOf(element) : undefined}
               />
             ))}
           </Layer>
@@ -228,14 +352,25 @@ export function BoardCanvas() {
             {Object.entries(remoteDrags).map(([id, drag]) => (
               <Group key={id} x={drag.offset.x} y={drag.offset.y}>
                 {sorted
-                  .filter((element) => drag.ids.includes(element.id) && !isMoving(element))
+                  .filter(
+                    (element) =>
+                      element.type !== 'line' && drag.ids.includes(element.id) && !isMoving(element),
+                  )
                   .map((element) => (
                     <ElementView key={element.id} element={element} editing={false} />
                   ))}
               </Group>
             ))}
+            {movingLines.map((line) => (
+              <ElementView
+                key={line.id}
+                element={previewed(line)}
+                editing={false}
+                ends={resolver.endsOf(line)}
+              />
+            ))}
           </Layer>
-          {!exporting && <SelectionOverlay elements={elements} />}
+          {!exporting && <SelectionOverlay elements={elements} resolver={resolver} />}
         </Stage>
       )}
     </div>
