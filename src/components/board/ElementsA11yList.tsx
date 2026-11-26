@@ -3,7 +3,7 @@ import { sortByZ } from '../../lib/geometry';
 import { displayRect, elementLinks } from '../../lib/layout';
 import { displayText, parseLinks } from '../../lib/richText';
 import { TEXT_LEVELS } from '../../lib/palette';
-import { isShown, resolveTags, sortCategories, type ResolvedTag } from '../../lib/tags';
+import { resolveTags, shownElements, sortCategories, type ResolvedTag } from '../../lib/tags';
 import { revealElement } from '../../stores/actions';
 import { useBoardStore } from '../../stores/boardStore';
 import { useTagStore } from '../../stores/tagStore';
@@ -12,7 +12,12 @@ import type { BoardElement } from '../../types/board';
 
 function describe(element: BoardElement, tags: ResolvedTag[]): string {
   if (element.type === 'line') {
-    return element.style.arrow === 'end' ? 'Flèche' : 'Trait';
+    const kind = element.style.arrow === 'end' ? 'Flèche' : 'Trait';
+    const label = displayText(element.content.text ?? '').trim();
+    return label ? `${kind} : ${label}` : kind;
+  }
+  if (element.type === 'diamond') {
+    return `Losange : ${displayText(element.content.text) || 'vide'}`;
   }
   if (element.type === 'postit') {
     const text = displayText(element.content.body) || 'vide';
@@ -44,7 +49,7 @@ export function ElementsA11yList() {
   const orderedCategories = useMemo(() => sortCategories(categories), [categories]);
   const sorted = useMemo(
     () =>
-      sortByZ(Object.values(elements).filter((element) => isShown(element, filters, selectedIds))),
+      sortByZ(shownElements(Object.values(elements), filters, selectedIds)),
     [elements, filters, selectedIds],
   );
 
@@ -72,6 +77,10 @@ export function ElementsA11yList() {
                   ? `${element.style.thickness}|${element.style.arrow}|${element.style.start}`
                   : undefined
               }
+              data-from={element.type === 'line' ? element.style.from || undefined : undefined}
+              data-from-side={element.type === 'line' ? element.style.fromSide || undefined : undefined}
+              data-to={element.type === 'line' ? element.style.to || undefined : undefined}
+              data-to-side={element.type === 'line' ? element.style.toSide || undefined : undefined}
               data-links={linkBoxes(element)}
               data-tags={tags.map((tag) => tag.label).join('|')}
               data-tag-colors={tags.map((tag) => tag.color).join('|')}

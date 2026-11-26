@@ -1,5 +1,5 @@
 import { boundsOf } from '../lib/geometry';
-import { displayRect } from '../lib/layout';
+import { displayRect, withLiveGeometry } from '../lib/layout';
 import { buildBoardFile, withFreshIds, type BoardFile } from '../lib/boardFile';
 import { getBoardStage } from '../lib/boardStage';
 import { visibleElements } from '../stores/actions';
@@ -30,7 +30,11 @@ function download(blob: Blob, fileName: string) {
 export function exportJson() {
   const { name, elements } = useBoardStore.getState();
   const { categories, values } = useTagStore.getState();
-  const file = buildBoardFile(name, Object.values(elements), categories, values);
+  // Un trait accroché garde dans le fichier sa position réelle, utile s'il perd une accroche.
+  const current = Object.values(elements).map((element) =>
+    element.type === 'line' ? withLiveGeometry(element) : element,
+  );
+  const file = buildBoardFile(name, current, categories, values);
   download(new Blob([JSON.stringify(file, null, 2)], { type: 'application/json' }), `${safeFileName(name)}.json`);
 }
 

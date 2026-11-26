@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import {
+  addDiamond,
   addPostit,
   addText,
   copySelection,
@@ -33,7 +34,7 @@ function isInsidePopup(target: EventTarget | null): boolean {
 function modifiesBoard(event: KeyboardEvent): boolean {
   const key = event.key.toLowerCase();
   if (event.ctrlKey || event.metaKey) return ['z', 'y', 'v', 'd'].includes(key);
-  return ['n', 't', 'l', 'delete', 'backspace', 'enter'].includes(key) || key.startsWith('arrow');
+  return ['n', 't', 'd', 'l', 'delete', 'backspace', 'enter'].includes(key) || key.startsWith('arrow');
 }
 
 function handleCommand(key: string, shift: boolean): boolean {
@@ -84,6 +85,9 @@ function handleSimpleKey(key: string, shift: boolean): boolean {
       return true;
     case 't':
       addText();
+      return true;
+    case 'd':
+      addDiamond();
       return true;
     case 'delete':
     case 'backspace':

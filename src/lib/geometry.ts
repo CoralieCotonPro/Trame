@@ -1,4 +1,4 @@
-import type { BoardElement, Point, Rect } from '../types/board';
+import type { BoardElement, LineElement, Point, Rect } from '../types/board';
 
 import { distanceToSegment, lineEndpoints } from './line';
 
@@ -49,8 +49,27 @@ export function sortByZ<T extends Pick<BoardElement, 'id' | 'zIndex'>>(elements:
   return [...elements].sort((a, b) => a.zIndex - b.zIndex || a.id.localeCompare(b.id));
 }
 
-function touches(element: BoardElement, rect: Rect, point: Point, tolerance: number): boolean {
+/** Un losange ne se saisit que dans sa forme, pas dans les coins de son rectangle. */
+export function insideDiamond(rect: Rect, point: Point): boolean {
+  if (rect.width <= 0 || rect.height <= 0) return false;
+  const dx = Math.abs(point.x - (rect.x + rect.width / 2)) / (rect.width / 2);
+  const dy = Math.abs(point.y - (rect.y + rect.height / 2)) / (rect.height / 2);
+  return dx + dy <= 1;
+}
+
+/** Un trait se saisit près de sa ligne ; `lineTouches` permet d'y ajouter son texte. */
+export type LineTouches = (line: LineElement, point: Point, tolerance: number) => boolean;
+
+function touches(
+  element: BoardElement,
+  rect: Rect,
+  point: Point,
+  tolerance: number,
+  lineTouches?: LineTouches,
+): boolean {
+  if (element.type === 'diamond') return insideDiamond(rect, point);
   if (element.type !== 'line') return containsPoint(rect, point);
+  if (lineTouches) return lineTouches(element, point, tolerance);
   const { start, end } = lineEndpoints(rect, element.style.start);
   return distanceToSegment(point, start, end) <= Math.max(tolerance, 1);
 }
@@ -61,11 +80,12 @@ export function hitTest(
   point: Point,
   getRect: (element: BoardElement) => Rect,
   tolerance = 0,
+  lineTouches?: LineTouches,
 ): BoardElement | null {
   const sorted = sortByZ(elements);
   for (let i = sorted.length - 1; i >= 0; i -= 1) {
     const element = sorted[i] as BoardElement;
-    if (touches(element, getRect(element), point, tolerance)) return element;
+    if (touches(element, getRect(element), point, tolerance, lineTouches)) return element;
   }
   return null;
 }
@@ -100,17 +120,21 @@ export function recentCentroid(
 }
 
 export function handlesFor(type: BoardElement['type']): Handle[] {
-  if (type === 'postit') return ['nw', 'ne', 'sw', 'se'];
+  if (type === 'postit' || type === 'diamond') return ['nw', 'ne', 'sw', 'se'];
   return type === 'text' ? ['w', 'e'] : [];
 }
 
-/** Poignées d'un élément : coins ou côtés pour un bloc, extrémités pour un trait. */
+/**
+ * Poignées d'un élément : coins ou côtés pour un bloc, extrémités pour un trait.
+ * `ends` donne les extrémités réelles d'un trait accroché à des éléments.
+ */
 export function elementHandles(
   element: BoardElement,
   rect: Rect,
+  ends?: { start: Point; end: Point },
 ): { handle: Handle; point: Point }[] {
   if (element.type === 'line') {
-    const { start, end } = lineEndpoints(rect, element.style.start);
+    const { start, end } = ends ?? lineEndpoints(rect, element.style.start);
     return [
       { handle: 'start', point: start },
       { handle: 'end', point: end },

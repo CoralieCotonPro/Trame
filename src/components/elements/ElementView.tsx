@@ -1,11 +1,18 @@
 import type { Context } from 'konva/lib/Context';
 import { memo } from 'react';
-import { Arrow, Group, Rect, Shape, Text } from 'react-konva';
+import { Arrow, Group, Line, Rect, Shape, Text } from 'react-konva';
 import {
   badgesTop,
+  diamondTextOrigin,
+  DIAMOND_PLACEHOLDER,
+  labelBox,
+  LABEL_FONT_SIZE,
+  LABEL_PADDING,
+  layoutDiamond,
   elementLinks,
   layoutPostit,
   displayRect,
+  lineEnds,
   BADGE_FONT,
   BADGE_HEIGHT,
   BADGE_PADDING_X,
@@ -18,15 +25,28 @@ import {
   POSTIT_PLACEHOLDER,
   TEXT_PLACEHOLDER,
 } from '../../lib/layout';
-import { lineEndpoints } from '../../lib/line';
-import { FONT_FAMILY, INK_MUTED, LINE_HEIGHT, postitFill, postitInk, TEXT_LEVELS } from '../../lib/palette';
+import { FONT_FAMILY, INK, INK_MUTED, LINE_HEIGHT, postitFill, postitInk, TEXT_LEVELS } from '../../lib/palette';
 import { displayText } from '../../lib/richText';
 import { useTagStore } from '../../stores/tagStore';
-import type { BoardElement, LineElement, PostitElement, TextElement } from '../../types/board';
+import type {
+  BoardElement,
+  DiamondElement,
+  LineElement,
+  Point,
+  PostitElement,
+  TextElement,
+} from '../../types/board';
+
+export interface LineEnds {
+  start: Point;
+  end: Point;
+}
 
 interface Props<T extends BoardElement> {
   element: T;
   editing: boolean;
+  /** Extrémités réelles d'un trait, accroches et déplacements en cours compris. */
+  ends?: LineEnds;
 }
 
 const canvasOf = (context: Context) =>
@@ -80,11 +100,19 @@ function drawLinks(context: Context, segments: LinkSegment[]) {
 function Links({ element }: { element: BoardElement }) {
   const { segments } = elementLinks(element);
   if (segments.length === 0) return null;
-  const offset = element.type === 'postit' ? POSTIT_PADDING : 0;
+  const offset =
+    element.type === 'postit'
+      ? { x: POSTIT_PADDING, y: POSTIT_PADDING }
+      : element.type === 'diamond'
+        ? (() => {
+            const origin = diamondTextOrigin(element);
+            return { x: origin.x - element.x, y: origin.y - element.y };
+          })()
+        : { x: 0, y: 0 };
   return (
     <Shape
-      x={offset}
-      y={offset}
+      x={offset.x}
+      y={offset.y}
       listening={false}
       sceneFunc={(context) => drawLinks(context, segments)}
     />
@@ -164,32 +192,122 @@ function TextView({ element, editing }: Props<TextElement>) {
   );
 }
 
-export const LINE_WIDTHS = { thin: 2, thick: 5 } as const;
+export function diamondPoints(width: number, height: number): number[] {
+  return [width / 2, 0, width, height / 2, width / 2, height, 0, height / 2];
+}
 
-function LineView({ element }: { element: LineElement }) {
-  const { start, end } = lineEndpoints(element, element.style.start);
-  const width = LINE_WIDTHS[element.style.thickness];
-  const arrow = element.style.arrow === 'end';
+function DiamondView({ element, editing }: Props<DiamondElement>) {
+  const { width, height } = displayRect(element);
+  const { innerWidth } = layoutDiamond(element);
+  const origin = diamondTextOrigin(element);
+  const text = displayText(element.content.text);
   return (
-    <Arrow
-      points={[start.x, start.y, end.x, end.y]}
-      stroke={element.style.color}
-      fill={element.style.color}
-      strokeWidth={width}
-      pointerLength={arrow ? 10 + width * 2 : 0}
-      pointerWidth={arrow ? 10 + width * 2 : 0}
-      lineCap="round"
-      lineJoin="round"
-      perfectDrawEnabled={false}
-    />
+    <Group x={element.x} y={element.y}>
+      <Line
+        points={diamondPoints(width, height)}
+        closed
+        fill={postitFill(element.style.color)}
+        stroke="rgba(22, 22, 22, 0.25)"
+        strokeWidth={1}
+        lineJoin="round"
+        shadowColor="#161616"
+        shadowOpacity={0.14}
+        shadowBlur={8}
+        shadowOffsetY={2}
+        shadowForStrokeEnabled={false}
+        perfectDrawEnabled={false}
+      />
+      {!editing && (
+        <Text
+          x={origin.x - element.x}
+          y={origin.y - element.y}
+          width={innerWidth}
+          text={text || DIAMOND_PLACEHOLDER}
+          align="center"
+          fontFamily={FONT_FAMILY}
+          fontSize={POSTIT_BODY_SIZE}
+          lineHeight={LINE_HEIGHT}
+          fill={postitInk(element.style.color)}
+          opacity={text ? 1 : 0.6}
+          perfectDrawEnabled={false}
+        />
+      )}
+      {!editing && <Links element={element} />}
+    </Group>
   );
 }
 
-export const ElementView = memo(function ElementView({ element, editing }: Props<BoardElement>) {
-  if (element.type === 'line') return <LineView element={element} />;
-  return element.type === 'postit' ? (
-    <PostitView element={element} editing={editing} />
-  ) : (
-    <TextView element={element} editing={editing} />
+export const LINE_WIDTHS = { thin: 2, thick: 5 } as const;
+
+function LineView({ element, editing, ends }: Props<LineElement> & { ends: LineEnds }) {
+  const { start, end } = ends;
+  const width = LINE_WIDTHS[element.style.thickness];
+  const arrow = element.style.arrow === 'end';
+  const label = editing ? null : labelBox(element.content.text ?? '', ends);
+  return (
+    <>
+      <Arrow
+        points={[start.x, start.y, end.x, end.y]}
+        stroke={element.style.color}
+        fill={element.style.color}
+        strokeWidth={width}
+        pointerLength={arrow ? 10 + width * 2 : 0}
+        pointerWidth={arrow ? 10 + width * 2 : 0}
+        lineCap="round"
+        lineJoin="round"
+        perfectDrawEnabled={false}
+      />
+      {label && (
+        <Group x={label.x} y={label.y}>
+          <Rect
+            width={label.width}
+            height={label.height}
+            cornerRadius={4}
+            fill="#ffffff"
+            stroke="rgba(22, 22, 22, 0.15)"
+            strokeWidth={1}
+            perfectDrawEnabled={false}
+          />
+          <Text
+            x={LABEL_PADDING.x}
+            y={LABEL_PADDING.y}
+            width={label.textWidth}
+            text={displayText(element.content.text ?? '')}
+            align="center"
+            fontFamily={FONT_FAMILY}
+            fontSize={LABEL_FONT_SIZE}
+            lineHeight={LINE_HEIGHT}
+            fill={INK}
+            perfectDrawEnabled={false}
+          />
+        </Group>
+      )}
+    </>
   );
-});
+}
+
+function sameEnds(a?: LineEnds, b?: LineEnds): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    a.start.x === b.start.x && a.start.y === b.start.y && a.end.x === b.end.x && a.end.y === b.end.y
+  );
+}
+
+export const ElementView = memo(
+  function ElementView({ element, editing, ends }: Props<BoardElement>) {
+    if (element.type === 'line') {
+      return <LineView element={element} editing={editing} ends={ends ?? lineEnds(element)} />;
+    }
+    if (element.type === 'diamond') return <DiamondView element={element} editing={editing} />;
+    return element.type === 'postit' ? (
+      <PostitView element={element} editing={editing} />
+    ) : (
+      <TextView element={element} editing={editing} />
+    );
+  },
+  (previous, next) =>
+    previous.element === next.element &&
+    previous.editing === next.editing &&
+    sameEnds(previous.ends, next.ends),
+);

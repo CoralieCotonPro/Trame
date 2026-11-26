@@ -31,6 +31,9 @@
 | Invités sans compte | Oui | Oui | Fonctionne en local |
 | Droits appliqués par la base, y compris sur le temps réel | Oui | Oui | Vérifié par des tentatives de contournement |
 | Traits et flèches : tracé, extrémités, épaisseur, couleur | Oui | Oui | Fonctionne |
+| Flèches entre éléments : 4 poignées, accroche, suivi des déplacements | Oui | Oui | Fonctionne en local |
+| Texte sur une flèche | Oui | Oui | Fonctionne en local |
+| Losanges (diagrammes de décision) | Oui | Oui | Fonctionne en local |
 | Liens sur des mots, ouverts dans un nouvel onglet | Oui | Oui | Fonctionne |
 | Export JSON versionné, import validé avec confirmation | Oui | Oui | Fonctionne |
 | Export PNG cadré, éléments hors écran compris | Oui | Oui | Fonctionne |
@@ -52,5 +55,6 @@ Avec 10 participants bougeant tous en même temps : 75 messages/s (limite gratui
 - **Invités :** une session anonyme est liée au navigateur. Après avoir vidé ses données de navigation, un invité doit rouvrir un lien valide. Aucune protection anti-robots (CAPTCHA) n'est en place : seule la limite par adresse IP protège la création de sessions.
 - **Accessibilité :** les éléments du canvas sont atteignables au clavier et lisibles par lecteur d'écran via une liste dédiée, mais l'application n'a pas été auditée avec de vrais lecteurs d'écran.
 - **Curseurs à 10 participants :** environ une mise à jour par seconde, pour rester dans la limite gratuite.
+- **Flèches :** toujours droites, d'un côté à l'autre. Pas de tracé coudé. Supprimer un élément supprime les flèches qui y sont accrochées (Annuler les ramène). Les flèches ne s'accrochent pas à un autre trait.
 - **Tablettes :** hors périmètre, à votre demande.
 - **Tests navigateur :** réalisés sous Chromium uniquement.

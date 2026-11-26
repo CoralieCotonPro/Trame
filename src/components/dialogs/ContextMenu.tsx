@@ -42,6 +42,9 @@ function ContextMenuContent({ x, y }: { x: number; y: number }) {
   const selected = [...selectedIds].flatMap((id) => elements[id] ?? []);
   const [only] = selected;
   const allPostits = selected.every((element) => element.type === 'postit');
+  const allFilled = selected.every(
+    (element) => element.type === 'postit' || element.type === 'diamond',
+  );
 
   useEffect(() => {
     ref.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus();
@@ -79,14 +82,17 @@ function ContextMenuContent({ x, y }: { x: number; y: number }) {
         top: Math.min(y, window.innerHeight - MENU_HEIGHT - 8),
       }}
     >
-      {selected.length === 1 && only && only.type !== 'line' && (
-        <Item label="Modifier" onClick={() => startEditing(only.id)} />
+      {selected.length === 1 && only && (
+        <Item
+          label={only.type === 'line' ? 'Écrire sur le trait' : 'Modifier'}
+          onClick={() => startEditing(only.id)}
+        />
       )}
       <Item label="Dupliquer" onClick={duplicateSelection} />
       <Item label="Copier" onClick={copySelection} />
       {allPostits && <Item label="Modifier les tags" onClick={() => openTagPicker(x, y)} />}
-      {allPostits && <Item label="Changer la couleur" onClick={() => setShowColors(!showColors)} />}
-      {allPostits && showColors && (
+      {allFilled && <Item label="Changer la couleur" onClick={() => setShowColors(!showColors)} />}
+      {allFilled && showColors && (
         <div className="grid grid-cols-4 gap-2 px-3 py-2">
           {POSTIT_COLORS.map((color) => (
             <ColorSwatch

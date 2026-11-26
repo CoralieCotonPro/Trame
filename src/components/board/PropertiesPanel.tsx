@@ -9,6 +9,7 @@ import {
   Minus,
   SendToBack,
   Trash2,
+  Type,
 } from 'lucide-react';
 import { useLayoutEffect, useRef, useState } from 'react';
 import { boardToScreen } from '../../lib/camera';
@@ -22,6 +23,7 @@ import {
   openTagPicker,
   patchSelection,
   sendToBack,
+  startEditing,
 } from '../../stores/actions';
 import { requestLink } from '../../lib/linkRequest';
 import { useBoardStore } from '../../stores/boardStore';
@@ -29,6 +31,7 @@ import { useTagStore } from '../../stores/tagStore';
 import { useUiStore } from '../../stores/uiStore';
 import type {
   BoardElement,
+  DiamondElement,
   LineElement,
   PostitElement,
   TextAlign,
@@ -69,21 +72,31 @@ export function ColorSwatch({
   );
 }
 
+function FillColors({ elements, label }: { elements: BoardElement[]; label: string }) {
+  return (
+    <div className="flex items-center gap-1" role="group" aria-label={label}>
+      {POSTIT_COLORS.map((color) => (
+        <ColorSwatch
+          key={color.id}
+          label={color.label}
+          color={color.fill}
+          selected={elements.every((element) => element.style.color === color.id)}
+          onClick={() => patchSelection({ style: { color: color.id } })}
+        />
+      ))}
+    </div>
+  );
+}
+
+function DiamondControls({ elements }: { elements: DiamondElement[] }) {
+  return <FillColors elements={elements} label="Couleur du losange" />;
+}
+
 function PostitControls({ elements }: { elements: PostitElement[] }) {
   const first = elements[0];
   return (
     <>
-      <div className="flex items-center gap-1" role="group" aria-label="Couleur du post-it">
-        {POSTIT_COLORS.map((color) => (
-          <ColorSwatch
-            key={color.id}
-            label={color.label}
-            color={color.fill}
-            selected={elements.every((element) => element.style.color === color.id)}
-            onClick={() => patchSelection({ style: { color: color.id } })}
-          />
-        ))}
-      </div>
+      <FillColors elements={elements} label="Couleur du post-it" />
       <Divider />
       <button
         type="button"
@@ -185,6 +198,10 @@ function isLine(element: BoardElement): element is LineElement {
   return element.type === 'line';
 }
 
+function isDiamond(element: BoardElement): element is DiamondElement {
+  return element.type === 'diamond';
+}
+
 function LineControls({ elements }: { elements: LineElement[] }) {
   const first = elements[0];
   return (
@@ -231,6 +248,18 @@ function LineControls({ elements }: { elements: LineElement[] }) {
           onClick={() => patchSelection({ style: { arrow: 'end' } })}
         />
       </div>
+      {elements.length === 1 && first && (
+        <>
+          <Divider />
+          <IconButton
+            icon={Type}
+            label="Écrire sur la flèche"
+            shortcut="Entrée"
+            tooltipSide="bottom"
+            onClick={() => startEditing(first.id)}
+          />
+        </>
+      )}
     </>
   );
 }
@@ -256,6 +285,7 @@ export function PropertiesPanel() {
   const postits = selected.filter(isPostit);
   const texts = selected.filter(isText);
   const lines = selected.filter(isLine);
+  const diamonds = selected.filter(isDiamond);
   const kind =
     postits.length === selected.length
       ? 'postit'
@@ -263,7 +293,9 @@ export function PropertiesPanel() {
         ? 'text'
         : lines.length === selected.length
           ? 'line'
-          : 'mixed';
+          : diamonds.length === selected.length
+            ? 'diamond'
+            : 'mixed';
   const editing = useUiStore((state) => state.editingId !== null);
   const readOnly = useUiStore((state) => state.role === 'viewer');
   const visible = bounds !== null && !busy && !readOnly;
@@ -303,6 +335,7 @@ export function PropertiesPanel() {
       {kind === 'postit' && <PostitControls elements={postits} />}
       {kind === 'text' && <TextControls elements={texts} />}
       {kind === 'line' && <LineControls elements={lines} />}
+      {kind === 'diamond' && <DiamondControls elements={diamonds} />}
       {kind !== 'mixed' && <Divider />}
       {editing && (
         <IconButton

@@ -31,13 +31,37 @@ export interface TextElement extends ElementBase {
 /** Coin du rectangle englobant où commence le trait ; il finit au coin opposé. */
 export type LineCorner = 'tl' | 'tr' | 'bl' | 'br';
 
+/** Côté d'un élément où s'accroche une flèche. */
+export type Side = 'top' | 'right' | 'bottom' | 'left';
+
 export interface LineElement extends ElementBase {
   type: 'line';
-  content: Record<string, never>;
-  style: { color: string; thickness: 'thin' | 'thick'; arrow: 'none' | 'end'; start: LineCorner };
+  /** Texte écrit sur le trait, au milieu. */
+  content: { text?: string };
+  style: {
+    color: string;
+    thickness: 'thin' | 'thick';
+    arrow: 'none' | 'end';
+    start: LineCorner;
+    /**
+     * Élément auquel est accroché le départ (`from`) ou l'arrivée (`to`), et le côté choisi.
+     * Une chaîne vide signifie que l'extrémité est libre : elle suit alors le rectangle englobant.
+     */
+    from?: string;
+    fromSide?: Side | '';
+    to?: string;
+    toSide?: Side | '';
+  };
 }
 
-export type BoardElement = PostitElement | TextElement | LineElement;
+/** Losange de diagramme de décision : un texte centré. */
+export interface DiamondElement extends ElementBase {
+  type: 'diamond';
+  content: { text: string };
+  style: { color: string };
+}
+
+export type BoardElement = PostitElement | TextElement | LineElement | DiamondElement;
 
 export interface ElementPatch {
   x?: number;
@@ -45,7 +69,10 @@ export interface ElementPatch {
   width?: number;
   height?: number;
   zIndex?: number;
-  content?: Partial<PostitElement['content']> | Partial<TextElement['content']>;
+  content?:
+    | Partial<PostitElement['content']>
+    | Partial<TextElement['content']>
+    | Partial<LineElement['content']>;
   style?:
     | Partial<PostitElement['style']>
     | Partial<TextElement['style']>
