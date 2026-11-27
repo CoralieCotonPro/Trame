@@ -135,6 +135,38 @@ test.describe('flèches entre les cartes', () => {
   });
 });
 
+test('la barre de propriétés laisse la poignée du haut visible et saisissable', async ({ page }) => {
+  await openNewBoard(page);
+  const a = await addPostit(page, 'Haut');
+  await moveTo(page, a, { x: 600, y: 450 });
+  await page.mouse.click(600, 450);
+  const top = await handle(page, a, 'top');
+  const panel = await page.getByRole('toolbar', { name: 'Propriétés de la sélection' }).boundingBox();
+  expect(panel).not.toBeNull();
+  expect((panel?.y ?? 0) + (panel?.height ?? 0)).toBeLessThan(top.y - 8);
+  await drag(page, top, { x: top.x + 200, y: top.y - 150 });
+  await expect(lines(page).first()).toHaveAttribute('data-from-side', 'top');
+});
+
+test('une flèche entre deux cartes décalées fait des coudes', async ({ page }) => {
+  await openNewBoard(page);
+  const { a, b } = await twoCards(page);
+  await moveTo(page, b, { x: 850, y: 600 });
+  await page.mouse.click((await center(page, a)).x, (await center(page, a)).y);
+  await drag(page, await handle(page, a, 'right'), await center(page, b));
+  const line = lines(page).first();
+  await expect(line).toHaveAttribute('data-path', /.+/);
+  const path = JSON.parse((await line.getAttribute('data-path')) as string) as number[][];
+  expect(path.length).toBeGreaterThan(2);
+  for (let i = 1; i < path.length; i += 1) {
+    const [x1, y1] = path[i - 1] as number[];
+    const [x2, y2] = path[i] as number[];
+    expect(x1 === x2 || y1 === y2).toBe(true);
+  }
+  await page.getByRole('button', { name: 'Tracé droit' }).click();
+  await expect(line).toHaveAttribute('data-path', /^\[\[[^\]]+\],\[[^\]]+\]\]$/);
+});
+
 test.describe('losanges', () => {
   test('ajouter un losange, y écrire, le relier et le retrouver', async ({ page }) => {
     await openNewBoard(page);

@@ -136,6 +136,7 @@ export function addConnector(
     style: {
       ...line.style,
       arrow: 'end',
+      route: 'elbow',
       from: sourceId,
       fromSide: sourceSide,
       to: target && targetElement ? target.id : '',

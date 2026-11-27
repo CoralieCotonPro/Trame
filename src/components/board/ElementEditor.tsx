@@ -8,7 +8,7 @@ import {
   POSTIT_BODY_SIZE,
   POSTIT_PADDING,
 } from '../../lib/layout';
-import { midpoint } from '../../lib/line';
+import { pathMidpoint } from '../../lib/line';
 import { FONT_FAMILY, INK, LINE_HEIGHT, postitFill, postitInk, TEXT_LEVELS } from '../../lib/palette';
 import { requestLink } from '../../lib/linkRequest';
 import { finishEditing } from '../../stores/actions';
@@ -264,8 +264,7 @@ export function ElementEditor() {
   const origin =
     element.type === 'line'
       ? (() => {
-          const ends = lineEnds(element);
-          return midpoint(ends.start, ends.end);
+          return pathMidpoint(lineEnds(element).path);
         })()
       : element;
 

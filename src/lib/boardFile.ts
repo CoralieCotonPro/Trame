@@ -204,12 +204,25 @@ function parseElement(raw: unknown, values: TagValue[]): FileElement {
       if (side !== '' && !isSide(side)) fail('Le côté d’accroche d’un trait est invalide.');
       return id && side ? { [idKey]: id, [sideKey]: side } : {};
     };
+    const route = (value: unknown) => {
+      if (value === undefined || value === '') return {};
+      if (value !== 'straight' && value !== 'elbow') fail('Le tracé d’un trait est invalide.');
+      return { route: value };
+    };
     const text = content.text === undefined ? '' : asText(content.text, 'Le texte d’un trait', 0, MAX_LABEL);
     return {
       ...base,
       type: 'line',
       content: text ? { text } : {},
-      style: { color, thickness, arrow, start, ...end('from', 'fromSide'), ...end('to', 'toSide') },
+      style: {
+        color,
+        thickness,
+        arrow,
+        start,
+        ...end('from', 'fromSide'),
+        ...end('to', 'toSide'),
+        ...route(style.route),
+      },
     } as FileElement;
   }
 

@@ -1,4 +1,4 @@
-import type { LineCorner, LineElement, Point, Rect, Side } from '../types/board';
+import type { LineCorner, LineElement, LineRoute, Point, Rect, Side } from '../types/board';
 
 const OPPOSITE: Record<LineCorner, LineCorner> = { tl: 'br', br: 'tl', tr: 'bl', bl: 'tr' };
 
@@ -95,6 +95,19 @@ export function attachedIds(line: LineElement): string[] {
   return [line.style.from, line.style.to].filter((id): id is string => Boolean(id));
 }
 
+/** Extrémités d'un trait et points de son tracé, coudes compris. */
+export interface LineEnds {
+  start: Point;
+  end: Point;
+  path: Point[];
+}
+
+/** Tracé effectif : choisi explicitement, sinon coudé dès qu'une extrémité est accrochée. */
+export function lineRoute(line: LineElement): LineRoute {
+  if (line.style.route === 'straight' || line.style.route === 'elbow') return line.style.route;
+  return attachedIds(line).length > 0 ? 'elbow' : 'straight';
+}
+
 /**
  * Extrémités réelles d'un trait : une extrémité accrochée suit son élément, une extrémité
  * libre (ou dont l'élément a disparu) reste sur le rectangle englobant, décalé de `offset`.
@@ -103,16 +116,130 @@ export function resolveLineEnds(
   line: LineElement,
   lookup: RectLookup,
   offset: Point = { x: 0, y: 0 },
-): { start: Point; end: Point } {
+): LineEnds {
   const free = lineEndpoints(line, line.style.start);
   const resolve = (id: string | undefined, side: Side | '' | undefined, fallback: Point) => {
     const rect = id && isSide(side) ? lookup(id) : null;
-    return rect ? sideAnchor(rect, side as Side) : { x: fallback.x + offset.x, y: fallback.y + offset.y };
+    return rect
+      ? { point: sideAnchor(rect, side as Side), side: side as Side }
+      : { point: { x: fallback.x + offset.x, y: fallback.y + offset.y }, side: null };
   };
-  return {
-    start: resolve(line.style.from, line.style.fromSide, free.start),
-    end: resolve(line.style.to, line.style.toSide, free.end),
-  };
+  const start = resolve(line.style.from, line.style.fromSide, free.start);
+  const end = resolve(line.style.to, line.style.toSide, free.end);
+  const path =
+    lineRoute(line) === 'elbow'
+      ? elbowRoute(start.point, start.side, end.point, end.side)
+      : [start.point, end.point];
+  return { start: start.point, end: end.point, path };
+}
+
+/** Longueur du premier et du dernier segment d'un tracé coudé : la flèche sort bien du côté. */
+const ELBOW_STUB = 24;
+
+/** Côté par lequel on quitte `from` pour aller vers `to`, quand rien ne l'impose. */
+function sideToward(from: Point, to: Point): Side {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0 ? 'right' : 'left';
+  return dy >= 0 ? 'bottom' : 'top';
+}
+
+function simplify(points: Point[]): Point[] {
+  const unique = points.filter(
+    (point, index) => index === 0 || point.x !== points[index - 1]!.x || point.y !== points[index - 1]!.y,
+  );
+  const kept: Point[] = [];
+  for (const point of unique) {
+    const a = kept.at(-2);
+    const b = kept.at(-1);
+    if (a && b && (b.x - a.x) * (point.y - a.y) === (b.y - a.y) * (point.x - a.x)) kept.pop();
+    kept.push(point);
+  }
+  return kept;
+}
+
+/**
+ * Tracé à angles droits : on sort perpendiculairement au côté de départ, on arrive
+ * perpendiculairement au côté d'arrivée. Deux côtés alignés face à face donnent un trait droit.
+ */
+export function elbowRoute(
+  start: Point,
+  startSide: Side | null,
+  end: Point,
+  endSide: Side | null,
+): Point[] {
+  const ds = NORMALS[startSide ?? sideToward(start, end)];
+  const de = NORMALS[endSide ?? sideToward(end, start)];
+  const a = { x: start.x + ds.x * ELBOW_STUB, y: start.y + ds.y * ELBOW_STUB };
+  const b = { x: end.x + de.x * ELBOW_STUB, y: end.y + de.y * ELBOW_STUB };
+  const startHorizontal = ds.x !== 0;
+  const endHorizontal = de.x !== 0;
+  let middle: Point[];
+
+  if (startHorizontal && endHorizontal) {
+    if (ds.x === -de.x && (b.x - a.x) * ds.x >= 0) {
+      const x = (a.x + b.x) / 2;
+      middle = [{ x, y: a.y }, { x, y: b.y }];
+    } else if (ds.x === de.x) {
+      const x = ds.x > 0 ? Math.max(a.x, b.x) : Math.min(a.x, b.x);
+      middle = [{ x, y: a.y }, { x, y: b.y }];
+    } else {
+      const y = (a.y + b.y) / 2;
+      middle = [{ x: a.x, y }, { x: b.x, y }];
+    }
+  } else if (!startHorizontal && !endHorizontal) {
+    if (ds.y === -de.y && (b.y - a.y) * ds.y >= 0) {
+      const y = (a.y + b.y) / 2;
+      middle = [{ x: a.x, y }, { x: b.x, y }];
+    } else if (ds.y === de.y) {
+      const y = ds.y > 0 ? Math.max(a.y, b.y) : Math.min(a.y, b.y);
+      middle = [{ x: a.x, y }, { x: b.x, y }];
+    } else {
+      const x = (a.x + b.x) / 2;
+      middle = [{ x, y: a.y }, { x, y: b.y }];
+    }
+  } else if (startHorizontal) {
+    const corner = { x: b.x, y: a.y };
+    const direct = (corner.x - a.x) * ds.x >= 0 && (b.y - corner.y) * -de.y >= 0;
+    middle = [direct ? corner : { x: a.x, y: b.y }];
+  } else {
+    const corner = { x: a.x, y: b.y };
+    const direct = (corner.y - a.y) * ds.y >= 0 && (b.x - corner.x) * -de.x >= 0;
+    middle = [direct ? corner : { x: b.x, y: a.y }];
+  }
+  return simplify([start, a, ...middle, b, end]);
+}
+
+export function pathLength(path: Point[]): number {
+  let total = 0;
+  for (let i = 1; i < path.length; i += 1) {
+    total += Math.hypot(path[i]!.x - path[i - 1]!.x, path[i]!.y - path[i - 1]!.y);
+  }
+  return total;
+}
+
+/** Point situé à mi-longueur du tracé : c'est là que s'écrit le texte. */
+export function pathMidpoint(path: Point[]): Point {
+  let remaining = pathLength(path) / 2;
+  for (let i = 1; i < path.length; i += 1) {
+    const a = path[i - 1]!;
+    const b = path[i]!;
+    const length = Math.hypot(b.x - a.x, b.y - a.y);
+    if (length >= remaining && length > 0) {
+      const t = remaining / length;
+      return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+    }
+    remaining -= length;
+  }
+  return path[0] ?? { x: 0, y: 0 };
+}
+
+export function distanceToPath(point: Point, path: Point[]): number {
+  let best = Infinity;
+  for (let i = 1; i < path.length; i += 1) {
+    best = Math.min(best, distanceToSegment(point, path[i - 1]!, path[i]!));
+  }
+  return best;
 }
 
 export function midpoint(a: Point, b: Point): Point {

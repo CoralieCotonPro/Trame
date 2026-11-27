@@ -1,4 +1,5 @@
 import {
+  CornerDownRight,
   AlignCenter,
   AlignLeft,
   AlignRight,
@@ -8,6 +9,7 @@ import {
   Link,
   Minus,
   SendToBack,
+  Slash,
   Trash2,
   Type,
 } from 'lucide-react';
@@ -26,6 +28,7 @@ import {
   startEditing,
 } from '../../stores/actions';
 import { requestLink } from '../../lib/linkRequest';
+import { lineRoute } from '../../lib/line';
 import { useBoardStore } from '../../stores/boardStore';
 import { useTagStore } from '../../stores/tagStore';
 import { useUiStore } from '../../stores/uiStore';
@@ -40,7 +43,8 @@ import type {
 } from '../../types/board';
 import { IconButton } from '../toolbar/IconButton';
 
-const PANEL_GAP = 12;
+/** Assez d'écart pour laisser visibles et saisissables les poignées de flèche. */
+const PANEL_GAP = 40;
 const TOP_LIMIT = 72;
 const SIDE_MARGIN = 80;
 
@@ -246,6 +250,23 @@ function LineControls({ elements }: { elements: LineElement[] }) {
           tooltipSide="bottom"
           active={first?.style.arrow === 'end'}
           onClick={() => patchSelection({ style: { arrow: 'end' } })}
+        />
+      </div>
+      <Divider />
+      <div className="flex items-center" role="group" aria-label="Tracé du trait">
+        <IconButton
+          icon={Slash}
+          label="Tracé droit"
+          tooltipSide="bottom"
+          active={elements.every((element) => lineRoute(element) === 'straight')}
+          onClick={() => patchSelection({ style: { route: 'straight' } })}
+        />
+        <IconButton
+          icon={CornerDownRight}
+          label="Tracé coudé"
+          tooltipSide="bottom"
+          active={elements.every((element) => lineRoute(element) === 'elbow')}
+          onClick={() => patchSelection({ style: { route: 'elbow' } })}
         />
       </div>
       {elements.length === 1 && first && (
