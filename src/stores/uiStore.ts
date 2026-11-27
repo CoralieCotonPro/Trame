@@ -26,7 +26,7 @@ interface UiState {
   /** Aperçu d'un redimensionnement, ou d'une extrémité de trait déplacée (`style`). */
   resizePreview: { id: string; rect: Rect; style?: Partial<LineElement['style']> } | null;
   /** Trait en cours de tracé ; `arrow` pour une flèche tirée depuis un élément. */
-  lineDraft: { from: Point; to: Point; arrow?: boolean } | null;
+  lineDraft: { from: Point; to: Point; arrow?: boolean; path?: Point[] } | null;
   /** Élément survolé : ses poignées de flèche apparaissent. */
   hoverId: string | null;
   /** Élément et côté où s'accrochera la flèche en cours. */

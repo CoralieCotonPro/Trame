@@ -19,7 +19,14 @@ import {
   MIN_POSTIT,
   MIN_TEXT_WIDTH,
 } from '../lib/layout';
-import { constrainAngle, lineFromPoints, nearestSide, SIDES, sideAnchor } from '../lib/line';
+import {
+  constrainAngle,
+  elbowRoute,
+  lineFromPoints,
+  nearestSide,
+  SIDES,
+  sideAnchor,
+} from '../lib/line';
 import { handlePoint, snapDelta, snapPoint } from '../lib/snap';
 import {
   addConnector,
@@ -376,9 +383,15 @@ export function useBoardPointer(containerRef: RefObject<HTMLDivElement | null>) 
         }
         case 'connect': {
           const target = connectTargetAt(point, gesture.from, gesture.source.id);
+          const to = target?.point ?? point;
           ui().set({
             connectTarget: target && { id: target.id, side: target.side },
-            lineDraft: { from: gesture.from, to: target?.point ?? point, arrow: true },
+            lineDraft: {
+              from: gesture.from,
+              to,
+              arrow: true,
+              path: elbowRoute(gesture.from, gesture.side, to, target?.side ?? null),
+            },
           });
           break;
         }

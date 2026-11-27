@@ -13,7 +13,14 @@ import type {
   TextElement,
 } from '../types/board';
 import { containsPoint } from './geometry';
-import { distanceToSegment, lineFromPoints, midpoint, resolveLineEnds, type RectLookup } from './line';
+import {
+  distanceToPath,
+  lineFromPoints,
+  pathMidpoint,
+  resolveLineEnds,
+  type LineEnds,
+  type RectLookup,
+} from './line';
 import { FONT_FAMILY, LINE_HEIGHT, TEXT_LEVELS } from './palette';
 import { displayText, parseLinks } from './richText';
 import { GRID_SPACING } from './snap';
@@ -222,13 +229,12 @@ export function lineEnds(line: LineElement, lookup: RectLookup = storeLookup) {
  */
 export function displayRect(element: BoardElement): Rect {
   if (element.type === 'line') {
-    const { start, end } = lineEnds(element);
-    return {
-      x: Math.min(start.x, end.x),
-      y: Math.min(start.y, end.y),
-      width: Math.max(1, Math.abs(end.x - start.x)),
-      height: Math.abs(end.y - start.y),
-    };
+    const { path } = lineEnds(element);
+    const xs = path.map((point) => point.x);
+    const ys = path.map((point) => point.y);
+    const x = Math.min(...xs);
+    const y = Math.min(...ys);
+    return { x, y, width: Math.max(1, Math.max(...xs) - x), height: Math.max(...ys) - y };
   }
   return {
     x: element.x,
@@ -250,7 +256,7 @@ let labelMeasurer: Konva.Text | null = null;
 /** Cadre du texte d'un trait, centré sur son milieu. `null` si le trait n'a pas de texte. */
 export function labelBox(
   text: string,
-  ends: { start: Point; end: Point },
+  ends: LineEnds,
 ): (Rect & { textWidth: number }) | null {
   const shown = displayText(text);
   if (!shown.trim()) return null;
@@ -258,7 +264,7 @@ export function labelBox(
   const widest = Math.max(...shown.split('\n').map((line) => labelMeasurer!.measureSize(line).width));
   const textWidth = Math.min(LABEL_MAX_WIDTH, Math.ceil(widest) + 2);
   const height = measureHeight(shown, textWidth, LABEL_FONT_SIZE, 'normal');
-  const center = midpoint(ends.start, ends.end);
+  const center = pathMidpoint(ends.path);
   const width = textWidth + LABEL_PADDING.x * 2;
   const boxHeight = height + LABEL_PADDING.y * 2;
   return { x: center.x - width / 2, y: center.y - boxHeight / 2, width, height: boxHeight, textWidth };
@@ -274,7 +280,7 @@ export function withLiveGeometry(line: LineElement): LineElement {
 /** Un trait se saisit près de sa ligne ou sur son texte. */
 export function lineTouches(line: LineElement, point: Point, tolerance: number): boolean {
   const ends = lineEnds(line);
-  if (distanceToSegment(point, ends.start, ends.end) <= Math.max(tolerance, 1)) return true;
+  if (distanceToPath(point, ends.path) <= Math.max(tolerance, 1)) return true;
   const box = labelBox(line.content.text ?? '', ends);
   return box !== null && containsPoint(box, point);
 }

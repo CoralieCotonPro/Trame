@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { sortByZ } from '../../lib/geometry';
-import { displayRect, elementLinks } from '../../lib/layout';
+import { displayRect, elementLinks, lineEnds } from '../../lib/layout';
 import { displayText, parseLinks } from '../../lib/richText';
 import { TEXT_LEVELS } from '../../lib/palette';
 import { resolveTags, shownElements, sortCategories, type ResolvedTag } from '../../lib/tags';
@@ -81,6 +81,11 @@ export function ElementsA11yList() {
               data-from-side={element.type === 'line' ? element.style.fromSide || undefined : undefined}
               data-to={element.type === 'line' ? element.style.to || undefined : undefined}
               data-to-side={element.type === 'line' ? element.style.toSide || undefined : undefined}
+              data-path={
+                element.type === 'line'
+                  ? JSON.stringify(lineEnds(element).path.map((p) => [Math.round(p.x), Math.round(p.y)]))
+                  : undefined
+              }
               data-links={linkBoxes(element)}
               data-tags={tags.map((tag) => tag.label).join('|')}
               data-tag-colors={tags.map((tag) => tag.color).join('|')}

@@ -51,8 +51,15 @@ export interface LineElement extends ElementBase {
     fromSide?: Side | '';
     to?: string;
     toSide?: Side | '';
+    /**
+     * Tracé : `elbow` à angles droits, `straight` en ligne droite. Absent ou vide :
+     * coudé dès qu'une extrémité est accrochée, droit sinon.
+     */
+    route?: LineRoute | '';
   };
 }
+
+export type LineRoute = 'straight' | 'elbow';
 
 /** Losange de diagramme de décision : un texte centré. */
 export interface DiamondElement extends ElementBase {

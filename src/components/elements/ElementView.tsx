@@ -28,19 +28,16 @@ import {
 import { FONT_FAMILY, INK, INK_MUTED, LINE_HEIGHT, postitFill, postitInk, TEXT_LEVELS } from '../../lib/palette';
 import { displayText } from '../../lib/richText';
 import { useTagStore } from '../../stores/tagStore';
+import type { LineEnds } from '../../lib/line';
 import type {
   BoardElement,
   DiamondElement,
   LineElement,
-  Point,
   PostitElement,
   TextElement,
 } from '../../types/board';
 
-export interface LineEnds {
-  start: Point;
-  end: Point;
-}
+export type { LineEnds };
 
 interface Props<T extends BoardElement> {
   element: T;
@@ -240,14 +237,13 @@ function DiamondView({ element, editing }: Props<DiamondElement>) {
 export const LINE_WIDTHS = { thin: 2, thick: 5 } as const;
 
 function LineView({ element, editing, ends }: Props<LineElement> & { ends: LineEnds }) {
-  const { start, end } = ends;
   const width = LINE_WIDTHS[element.style.thickness];
   const arrow = element.style.arrow === 'end';
   const label = editing ? null : labelBox(element.content.text ?? '', ends);
   return (
     <>
       <Arrow
-        points={[start.x, start.y, end.x, end.y]}
+        points={ends.path.flatMap((point) => [point.x, point.y])}
         stroke={element.style.color}
         fill={element.style.color}
         strokeWidth={width}
@@ -290,7 +286,8 @@ function sameEnds(a?: LineEnds, b?: LineEnds): boolean {
   if (a === b) return true;
   if (!a || !b) return false;
   return (
-    a.start.x === b.start.x && a.start.y === b.start.y && a.end.x === b.end.x && a.end.y === b.end.y
+    a.path.length === b.path.length &&
+    a.path.every((point, index) => point.x === b.path[index]?.x && point.y === b.path[index]?.y)
   );
 }
 

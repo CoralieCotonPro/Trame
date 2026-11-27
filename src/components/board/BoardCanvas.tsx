@@ -120,14 +120,15 @@ function SelectionOverlay({
     <Layer listening={false}>
       {selected.map((raw) => {
         if (raw.type !== 'line') return null;
-        const { start, end } = resolver.endsOf(raw);
+        const { path } = resolver.endsOf(raw);
         return (
           <KonvaLine
             key={raw.id}
-            points={[start.x, start.y, end.x, end.y]}
+            points={path.flatMap((point) => [point.x, point.y])}
             stroke={ACCENT_SOFT}
             strokeWidth={LINE_WIDTHS[raw.style.thickness] + 8 / zoom}
             lineCap="round"
+            lineJoin="round"
           />
         );
       })}
@@ -215,7 +216,7 @@ function SelectionOverlay({
         })()}
       {lineDraft && (
         <KonvaArrow
-          points={[lineDraft.from.x, lineDraft.from.y, lineDraft.to.x, lineDraft.to.y]}
+          points={(lineDraft.path ?? [lineDraft.from, lineDraft.to]).flatMap((p) => [p.x, p.y])}
           stroke={INK}
           fill={INK}
           strokeWidth={LINE_WIDTHS.thin}
