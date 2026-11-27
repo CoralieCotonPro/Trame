@@ -55,6 +55,6 @@ Avec 10 participants bougeant tous en même temps : 75 messages/s (limite gratui
 - **Invités :** une session anonyme est liée au navigateur. Après avoir vidé ses données de navigation, un invité doit rouvrir un lien valide. Aucune protection anti-robots (CAPTCHA) n'est en place : seule la limite par adresse IP protège la création de sessions.
 - **Accessibilité :** les éléments du canvas sont atteignables au clavier et lisibles par lecteur d'écran via une liste dédiée, mais l'application n'a pas été auditée avec de vrais lecteurs d'écran.
 - **Curseurs à 10 participants :** environ une mise à jour par seconde, pour rester dans la limite gratuite.
-- **Flèches :** toujours droites, d'un côté à l'autre. Pas de tracé coudé. Supprimer un élément supprime les flèches qui y sont accrochées (Annuler les ramène). Les flèches ne s'accrochent pas à un autre trait.
+- **Flèches :** coudées à angles droits ou droites. Le tracé coudé ne contourne pas les autres éléments qui se trouvent sur son chemin. Supprimer un élément supprime les flèches qui y sont accrochées (Annuler les ramène). Les flèches ne s'accrochent pas à un autre trait.
 - **Tablettes :** hors périmètre, à votre demande.
 - **Tests navigateur :** réalisés sous Chromium uniquement.

@@ -45,6 +45,7 @@ Compromis de Konva : le canvas ne sait pas éditer du texte. Pendant l'édition,
 ## Flèches et losanges
 
 - Une flèche est un trait (`type: 'line'`) dont chaque extrémité peut être accrochée au milieu d'un côté d'un élément (`style.from`/`fromSide`, `style.to`/`toSide`). Ses extrémités sont recalculées à l'affichage (`lib/line.ts`, `resolveLineEnds`) : déplacer ou agrandir l'élément ne produit aucune écriture sur la flèche. Le rectangle englobant enregistré ne sert que si l'élément accroché a disparu.
+- Le tracé coudé (`elbowRoute`) sort et arrive perpendiculairement aux côtés, avec un coude au milieu si besoin. Il n'évite pas les autres éléments.
 - Une chaîne vide détache une extrémité : la base fusionne `style` champ par champ et n'efface jamais une clé.
 - Supprimer un élément supprime dans la même action les flèches qui y sont accrochées. Copier une flèche avec ses deux éléments relie les copies ; sinon, l'extrémité orpheline devient libre.
 - Un losange (`type: 'diamond'`) se comporte comme un post-it sans tags. Son texte occupe un rectangle inscrit dans la forme, et sa hauteur grandit avec le texte.
